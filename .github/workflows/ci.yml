@@ -1,0 +1,137 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+# A new push to the same branch cancels the run already in flight — no point
+# spending minutes verifying a commit that has been superseded.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: Backend — lint, typecheck, test
+    runs-on: ubuntu-latest
+
+    # The integration tests run against real PostgreSQL, not a mock. That is the
+    # whole point of them: unique indexes, CHECK constraints, SELECT ... FOR
+    # UPDATE and transaction rollback are database behaviour, and a mock would
+    # happily pass while the real thing was broken.
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: hrm
+          POSTGRES_PASSWORD: hrm_ci_password
+          POSTGRES_DB: hrm_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U hrm -d hrm_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      DATABASE_URL: postgresql://hrm:hrm_ci_password@localhost:5432/hrm_test
+      NODE_ENV: test
+      JWT_ACCESS_SECRET: ci_access_secret_at_least_32_characters_long_xx
+      JWT_REFRESH_SECRET: ci_refresh_secret_at_least_32_characters_long_x
+      AI_PROVIDER: fake
+
+    defaults:
+      run:
+        working-directory: backend
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      # `npm ci` rather than `npm install`: it installs exactly the lockfile and
+      # fails if package.json and the lockfile disagree, so CI cannot silently
+      # test a different dependency tree than the one that was committed.
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      # Applied here as well as by the test global-setup, so a broken migration
+      # fails as its own clearly-named step rather than inside the test output.
+      - name: Apply migrations
+        run: npx drizzle-kit migrate
+
+      - name: Test
+        run: npm run test
+
+      - name: Build
+        run: npm run build
+
+  frontend:
+    name: Frontend — lint, typecheck, build
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: frontend
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Build
+        run: npm run build
+
+  docker:
+    name: Docker images build
+    runs-on: ubuntu-latest
+    # Only after the code is known good — building images for a failing commit
+    # wastes several minutes to prove nothing.
+    needs: [backend, frontend]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Build API image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./backend
+          push: false
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build web image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./frontend
+          push: false
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
