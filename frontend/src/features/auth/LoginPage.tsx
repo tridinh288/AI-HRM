@@ -30,6 +30,23 @@ const DEMO_ACCOUNTS = [
 
 const DEMO_PASSWORD = 'DemoPassw0rd!';
 
+/**
+ * Only ever redirect to a path inside this application.
+ *
+ * The value comes from navigation state that ultimately derives from a URL the
+ * visitor controls, so an unchecked `navigate(from)` is an open redirect: a
+ * crafted link could bounce someone from a real login page to an attacker's
+ * copy of it, which is a convincing way to harvest credentials. A path must
+ * start with exactly one "/" — `//evil.example` and `\\evil.example` are both
+ * protocol-relative URLs, not local paths.
+ */
+function safeRedirect(target: unknown): string {
+  if (typeof target !== 'string') return '/';
+  if (!target.startsWith('/')) return '/';
+  if (target.startsWith('//') || target.startsWith('/\\')) return '/';
+  return target;
+}
+
 export function LoginPage() {
   const { login, status } = useAuth();
   const navigate = useNavigate();
@@ -55,8 +72,8 @@ export function LoginPage() {
     try {
       await login(values.email, values.password);
       // Return the user to the page they originally asked for, rather than
-      // always dumping them on the dashboard.
-      const from = (location.state as { from?: string } | null)?.from ?? '/';
+      // always dumping them on the dashboard — but only if it is a local path.
+      const from = safeRedirect((location.state as { from?: unknown } | null)?.from);
       navigate(from, { replace: true });
     } catch (error) {
       setServerError(getErrorMessage(error));
