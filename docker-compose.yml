@@ -1,0 +1,79 @@
+########################################################################
+# One command to run the whole system:   docker compose up --build
+#
+# Copy .env.example to .env first. No secret is ever written into this file
+# or into a Dockerfile — everything sensitive comes from the environment.
+########################################################################
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-hrm}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: ${POSTGRES_DB:-hrm}
+    ports:
+      # Exposed so you can connect a GUI client from the host. Remove this in
+      # any real deployment — the database has no reason to be reachable from
+      # outside the compose network.
+      - '${POSTGRES_PORT:-5432}:5432'
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      # The API depends on this passing, not merely on the container starting:
+      # PostgreSQL accepts TCP connections seconds before it can answer queries,
+      # and without the check the backend crashes on boot roughly half the time.
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER:-hrm} -d ${POSTGRES_DB:-hrm}']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build:
+      context: ./backend
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      PORT: 4000
+      # Inside the compose network the database host is the service name.
+      DATABASE_URL: postgresql://${POSTGRES_USER:-hrm}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-hrm}
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:8080}
+      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:?set JWT_ACCESS_SECRET in .env}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:?set JWT_REFRESH_SECRET in .env}
+      JWT_ACCESS_TTL: ${JWT_ACCESS_TTL:-15m}
+      JWT_REFRESH_TTL_DAYS: ${JWT_REFRESH_TTL_DAYS:-7}
+      WORK_START: ${WORK_START:-08:00}
+      WORK_END: ${WORK_END:-17:30}
+      LATE_GRACE_MINUTES: ${LATE_GRACE_MINUTES:-5}
+      BREAK_MINUTES: ${BREAK_MINUTES:-60}
+      ANNUAL_LEAVE_DAYS: ${ANNUAL_LEAVE_DAYS:-12}
+      COMPANY_TIMEZONE: ${COMPANY_TIMEZONE:-Asia/Ho_Chi_Minh}
+      AI_PROVIDER: ${AI_PROVIDER:-fake}
+      AI_MODEL: ${AI_MODEL:-gpt-4o-mini}
+      AI_API_KEY: ${AI_API_KEY:-}
+      AI_BASE_URL: ${AI_BASE_URL:-https://api.openai.com/v1}
+      AI_TIMEOUT_MS: ${AI_TIMEOUT_MS:-30000}
+      AI_MAX_TOOL_ITERATIONS: ${AI_MAX_TOOL_ITERATIONS:-5}
+      AI_RATE_LIMIT_PER_HOUR: ${AI_RATE_LIMIT_PER_HOUR:-30}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    ports:
+      - '4000:4000'
+
+  web:
+    build:
+      context: ./frontend
+      args:
+        # Baked in at build time — Vite has no runtime configuration.
+        VITE_API_URL: ${VITE_API_URL:-http://localhost:4000/api/v1}
+    restart: unless-stopped
+    depends_on:
+      - api
+    ports:
+      - '8080:80'
+
+volumes:
+  postgres-data:
