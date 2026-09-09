@@ -184,3 +184,18 @@ export interface AiCapabilities {
   provider: string;
   tools: { name: string; title: string; description: string; scope: 'self' | 'organisation' }[];
 }
+
+export interface AiConversationMessage {
+  id: string;
+  role: 'USER' | 'ASSISTANT';
+  content: string;
+  createdAt: string;
+  /** Present on assistant messages: the calls made to answer the question before it. */
+  toolCalls?: AiToolCall[];
+}
+
+export interface AiConversationDetail {
+  id: string;
+  title: string;
+  messages: AiConversationMessage[];
+}

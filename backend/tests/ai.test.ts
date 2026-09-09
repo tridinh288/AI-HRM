@@ -495,6 +495,39 @@ describe('conversation ownership', () => {
     expect(response.status).toBe(404);
   });
 
+  it('replays each answer with the tool calls behind it, refused ones included', async () => {
+    // A reopened conversation must show the same evidence it showed live: the
+    // page renders the allowed / refused trail under every answer.
+    scriptToolCall('get_my_leave_balance', {});
+    const first = await ask(employee, 'How many days do I have left?');
+
+    fake.script(
+      { content: null, toolCalls: [{ id: 'call_2', name: 'get_late_employees', arguments: {} }] },
+      { content: 'I cannot access that.', toolCalls: [] },
+    );
+    await api()
+      .post(`${API}/ai/assistant`)
+      .set('Authorization', `Bearer ${tokenFor(employee)}`)
+      .send({ question: 'Who was late?', conversationId: first.body.data.conversationId });
+
+    const response = await api()
+      .get(`${API}/ai/conversations/${first.body.data.conversationId}`)
+      .set('Authorization', `Bearer ${tokenFor(employee)}`);
+
+    expect(response.status).toBe(200);
+    const [question, answer, secondQuestion, secondAnswer] = response.body.data.messages;
+
+    expect(question.toolCalls).toBeUndefined();
+    expect(answer.toolCalls).toEqual([
+      expect.objectContaining({ name: 'get_my_leave_balance', title: 'My leave balance', allowed: true }),
+    ]);
+    expect(secondQuestion.toolCalls).toBeUndefined();
+    expect(secondAnswer.toolCalls).toEqual([
+      expect.objectContaining({ name: 'get_late_employees', allowed: false }),
+    ]);
+    expect(secondAnswer.toolCalls[0].deniedReason).toContain('EMPLOYEE');
+  });
+
   it('keeps a conversation and its message history for the owner', async () => {
     scriptToolCall('get_my_leave_balance', {});
     const created = await ask(employee, 'First question');

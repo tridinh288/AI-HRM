@@ -63,6 +63,29 @@ export async function listMessages(conversationId: string, limit = 40) {
     .limit(limit);
 }
 
+/**
+ * Every tool call made in one conversation, in the order they happened.
+ *
+ * Read back when a conversation is reopened, so the answers show the same
+ * allowed / refused trail they showed when they were first given. The join
+ * through ai_messages is the ownership boundary: only messages of the given
+ * conversation qualify, and the caller has already proven it owns that.
+ */
+export async function listInvocationsForConversation(conversationId: string) {
+  return db
+    .select({
+      messageId: aiToolInvocations.messageId,
+      toolName: aiToolInvocations.toolName,
+      allowed: aiToolInvocations.allowed,
+      deniedReason: aiToolInvocations.deniedReason,
+      durationMs: aiToolInvocations.durationMs,
+    })
+    .from(aiToolInvocations)
+    .innerJoin(aiMessages, eq(aiMessages.id, aiToolInvocations.messageId))
+    .where(eq(aiMessages.conversationId, conversationId))
+    .orderBy(asc(aiToolInvocations.createdAt));
+}
+
 export async function appendMessage(
   conversationId: string,
   role: 'USER' | 'ASSISTANT',

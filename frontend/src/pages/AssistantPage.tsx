@@ -1,5 +1,5 @@
 import { useMutation, useQuery } from '@tanstack/react-query';
-import { Bot, Send, ShieldAlert, ShieldCheck, User } from 'lucide-react';
+import { Bot, MessageSquarePlus, Send, ShieldAlert, ShieldCheck, User } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import Markdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -7,7 +7,18 @@ import remarkGfm from 'remark-gfm';
 import { Badge, Button, Card, CardHeader, Input, PageHeader, Spinner } from '../components/ui';
 import { useAuth } from '../features/auth/AuthContext';
 import { api, fetchData, getErrorMessage } from '../lib/api';
-import type { AiAnswer, AiCapabilities, AiToolCall } from '../lib/types';
+import {
+  conversationStorageKey,
+  readStoredConversation,
+  storeConversation,
+} from '../lib/assistant-storage';
+import type {
+  AiAnswer,
+  AiCapabilities,
+  AiConversationDetail,
+  AiConversationMessage,
+  AiToolCall,
+} from '../lib/types';
 
 interface ChatMessage {
   id: string;
@@ -72,12 +83,66 @@ function AssistantMarkdown({ content }: { content: string }) {
   );
 }
 
+/** A stored message, in the shape the chat renders. */
+function toChatMessage(message: AiConversationMessage): ChatMessage {
+  return {
+    id: message.id,
+    role: message.role === 'USER' ? 'user' : 'assistant',
+    content: message.content,
+    ...(message.toolCalls ? { toolCalls: message.toolCalls } : {}),
+  };
+}
+
 export function AssistantPage() {
-  const { isHrOrAdmin } = useAuth();
+  const { isHrOrAdmin, user } = useAuth();
+  const storageKey = user ? conversationStorageKey(user.id) : null;
+
+  // Messages added on this visit. Anything from before it comes from the server.
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
-  const [conversationId, setConversationId] = useState<string | undefined>();
+  // Navigating away unmounts this page and its state with it. The server has
+  // kept every message, so remembering just the id is enough to pick the
+  // conversation back up — after a route change or a reload alike.
+  const [conversationId, setConversationId] = useState<string | undefined>(() =>
+    storageKey ? readStoredConversation(storageKey) : undefined,
+  );
+  // A conversation begun on this visit is already on screen; only one that was
+  // open before the page mounted needs fetching.
+  const [startedHere, setStartedHere] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
+
+  const restore = useQuery({
+    queryKey: ['ai', 'conversation', conversationId],
+    queryFn: async () => {
+      try {
+        return await fetchData<AiConversationDetail>(`/ai/conversations/${conversationId}`);
+      } catch (error) {
+        // The stored id no longer resolves (deleted, or another account's).
+        // Forget it rather than keep failing on a conversation nobody chose.
+        if (storageKey) storeConversation(storageKey, null);
+        throw error;
+      }
+    },
+    enabled: Boolean(conversationId) && !startedHere,
+    retry: false,
+  });
+
+  const restored: ChatMessage[] =
+    conversationId && restore.data?.id === conversationId
+      ? restore.data.messages.map(toChatMessage)
+      : [];
+  const shown = [...restored, ...messages];
+  const restoring = Boolean(conversationId) && !startedHere && restore.isPending;
+  // A conversation that failed to load is not continued: the next question
+  // starts a fresh one.
+  const activeConversationId = restore.isError ? undefined : conversationId;
+
+  function startNewConversation() {
+    setMessages([]);
+    setConversationId(undefined);
+    setStartedHere(false);
+    if (storageKey) storeConversation(storageKey, null);
+  }
 
   const capabilities = useQuery({
     queryKey: ['ai', 'capabilities'],
@@ -89,12 +154,14 @@ export function AssistantPage() {
     mutationFn: async (question: string) => {
       const response = await api.post<{ data: AiAnswer }>('/ai/assistant', {
         question,
-        conversationId,
+        conversationId: activeConversationId,
       });
       return response.data.data;
     },
     onSuccess: (answer) => {
+      setStartedHere(true);
       setConversationId(answer.conversationId);
+      if (storageKey) storeConversation(storageKey, answer.conversationId);
       setMessages((current) => [
         ...current,
         {
@@ -122,7 +189,7 @@ export function AssistantPage() {
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, ask.isPending]);
+  }, [shown.length, ask.isPending]);
 
   function submit(question: string) {
     const trimmed = question.trim();
@@ -143,12 +210,31 @@ export function AssistantPage() {
       <PageHeader
         title="HR Assistant"
         description="Ask about your own HR data — or, for HR and admins, about the company"
+        action={
+          shown.length > 0 ? (
+            <Button
+              variant="secondary"
+              icon={<MessageSquarePlus className="h-4 w-4" />}
+              onClick={startNewConversation}
+              disabled={ask.isPending}
+            >
+              New conversation
+            </Button>
+          ) : undefined
+        }
       />
 
       <div className="grid gap-6 lg:grid-cols-[1fr_20rem]">
         <Card padded={false} className="flex h-[36rem] flex-col">
           <div className="flex-1 space-y-4 overflow-y-auto p-5">
-            {messages.length === 0 && (
+            {restoring && (
+              <div className="flex h-full items-center justify-center gap-2 text-sm text-slate-400">
+                <Spinner className="h-4 w-4" />
+                Picking up where you left off…
+              </div>
+            )}
+
+            {shown.length === 0 && !restoring && (
               <div className="flex h-full flex-col items-center justify-center gap-4 text-center">
                 <div className="rounded-xl bg-brand-50 p-3 text-brand-600">
                   <Bot className="h-6 w-6" />
@@ -175,7 +261,7 @@ export function AssistantPage() {
               </div>
             )}
 
-            {messages.map((message) => (
+            {shown.map((message) => (
               <div
                 key={message.id}
                 className={message.role === 'user' ? 'flex justify-end' : 'flex justify-start'}
