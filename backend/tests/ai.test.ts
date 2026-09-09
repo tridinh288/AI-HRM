@@ -129,6 +129,21 @@ describe('GET /ai/capabilities — the tool list is filtered by role', () => {
     expect(names.length).toBeGreaterThan(5);
   });
 
+  it('gives every tool a human-readable title alongside its identifier', async () => {
+    // The UI shows the title; the identifier is what the model calls and what
+    // the audit trail stores. Both must be present, and they must differ.
+    const response = await api()
+      .get(`${API}/ai/capabilities`)
+      .set('Authorization', `Bearer ${tokenFor(hr)}`);
+
+    for (const tool of response.body.data.tools as { name: string; title: string }[]) {
+      expect(tool.title).toEqual(expect.any(String));
+      expect(tool.title.trim().length).toBeGreaterThan(0);
+      expect(tool.title).not.toBe(tool.name);
+      expect(tool.title).not.toMatch(/_/);
+    }
+  });
+
   it('exposes no tool that can return salary, for any role', async () => {
     const response = await api()
       .get(`${API}/ai/capabilities`)
