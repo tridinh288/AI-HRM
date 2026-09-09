@@ -3,8 +3,6 @@
 > Tài liệu thiết kế viết **trước** khi lập trình, rồi được rà lại theo mã nguồn thật. Mọi
 > quyết định ở đây phải bảo vệ được trong phỏng vấn kỹ thuật: cân nhắc cái gì, và vì sao phương
 > án này thắng. Những chỗ mã nguồn đi khác bản thiết kế ban đầu được ghi rõ ở [§11](#11-những-gì-đã-khác-so-với-bản-thiết-kế-ban-đầu).
->
-> Bản tiếng Anh gốc: [DESIGN.en.md](DESIGN.en.md).
 
 ---
 
@@ -548,7 +546,7 @@ phát hiện ở màn hình đăng nhập và được tái hiện trong jsdom t
 
 Commit theo Conventional Commits, mỗi commit một tính năng mạch lạc:
 `feat(leave): enforce balance and overlap rules inside a transaction`. Mỗi thay đổi đi trên
-branch riêng, PR vào `develop`; `main` chỉ nhận khi mọi thứ thật sự ổn.
+branch riêng và vào `main` qua PR sau khi CI xanh.
 
 ---
 

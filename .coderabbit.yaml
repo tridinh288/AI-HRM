@@ -25,13 +25,10 @@ reviews:
   auto_review:
     enabled: true
 
-    # Without this, CodeRabbit reviews only pull requests targeting the default
-    # branch (`main`) — so every feature PR into `develop` was merged unreviewed,
-    # the same gap the CI workflow had. Anchored so that `develop` does not also
-    # match a branch merely containing the word.
+    # Anchored so the pattern matches the branch exactly, not one that merely
+    # contains the word.
     base_branches:
       - '^main$'
-      - '^develop$'
 
     # Draft pull requests are still being written; reviewing them spends tokens
     # on code the author already knows is unfinished.

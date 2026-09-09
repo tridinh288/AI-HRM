@@ -1,12 +1,10 @@
 name: CI
 
-# `develop` is the integration branch every feature PR targets, so it needs the
-# same gate as `main` — a check that only runs after merge is not a gate.
 on:
   push:
-    branches: [main, develop]
+    branches: [main]
   pull_request:
-    branches: [main, develop]
+    branches: [main]
 
 # A new push to the same branch cancels the run already in flight — no point
 # spending minutes verifying a commit that has been superseded.
