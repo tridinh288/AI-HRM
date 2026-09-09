@@ -14,6 +14,7 @@ export interface Employee {
   lastName: string;
   fullName: string;
   email: string;
+  role: Role;
   phone: string | null;
   dateOfBirth: string | null;
   gender: string | null;

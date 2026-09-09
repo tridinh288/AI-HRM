@@ -8,6 +8,7 @@ import {
   createEmployeeSchema,
   listEmployeesQuery,
   terminateEmployeeSchema,
+  updateAccountSchema,
   updateEmployeeSchema,
   updateOwnProfileSchema,
 } from './employee.schema.js';
@@ -58,4 +59,13 @@ employeeRouter.post(
   requireRole('HR', 'ADMIN'),
   validate({ params: uuidParam(), body: terminateEmployeeSchema }),
   asyncHandler(controller.terminate),
+);
+
+// ADMIN alone: HR manages people, ADMIN manages access. This is the one route
+// where the two roles differ, and the reason the ADMIN role exists.
+employeeRouter.patch(
+  '/:id/account',
+  requireRole('ADMIN'),
+  validate({ params: uuidParam(), body: updateAccountSchema }),
+  asyncHandler(controller.updateAccount),
 );

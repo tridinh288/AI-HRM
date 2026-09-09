@@ -114,8 +114,26 @@ export const terminateEmployeeSchema = z.object({
   reason: z.string().trim().max(500).optional(),
 });
 
+/**
+ * The account behind an employee — role and whether it may sign in.
+ *
+ * Kept off the general PATCH on purpose (see `updateEmployeeSchema`): these
+ * are access-control fields with their own endpoint, their own role gate and
+ * their own refusals, so that a bug in ordinary profile editing can never
+ * become a privilege change.
+ */
+export const updateAccountSchema = z
+  .object({
+    role: z.enum(roleEnum.enumValues).optional(),
+    isActive: z.boolean().optional(),
+  })
+  .refine((value) => Object.keys(value).length > 0, {
+    message: 'Provide a role, an active flag, or both',
+  });
+
 export type CreateEmployeeInput = z.infer<typeof createEmployeeSchema>;
 export type UpdateEmployeeInput = z.infer<typeof updateEmployeeSchema>;
 export type UpdateOwnProfileInput = z.infer<typeof updateOwnProfileSchema>;
 export type ListEmployeesQuery = z.infer<typeof listEmployeesQuery>;
 export type TerminateEmployeeInput = z.infer<typeof terminateEmployeeSchema>;
+export type UpdateAccountInput = z.infer<typeof updateAccountSchema>;

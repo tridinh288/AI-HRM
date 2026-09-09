@@ -1,7 +1,7 @@
-import { and, asc, count, desc, eq, ilike, or, sql, type SQL } from 'drizzle-orm';
+import { and, asc, count, desc, eq, ilike, ne, or, sql, type SQL } from 'drizzle-orm';
 
 import { db, type DbExecutor } from '../../db/client.js';
-import { departments, employees, positions, users } from '../../db/schema.js';
+import { departments, employees, positions, users, type Role } from '../../db/schema.js';
 import { toOffset } from '../../shared/http.js';
 import type { ListEmployeesQuery, UpdateEmployeeInput } from './employee.schema.js';
 
@@ -19,6 +19,7 @@ export interface EmployeeRow {
   firstName: string;
   lastName: string;
   email: string;
+  role: Role;
   phone: string | null;
   dateOfBirth: string | null;
   gender: string | null;
@@ -42,6 +43,7 @@ const columns = {
   firstName: employees.firstName,
   lastName: employees.lastName,
   email: users.email,
+  role: users.role,
   phone: employees.phone,
   dateOfBirth: employees.dateOfBirth,
   gender: employees.gender,
@@ -236,6 +238,34 @@ export async function setUserActive(
   executor: DbExecutor = db,
 ): Promise<void> {
   await executor.update(users).set({ isActive, updatedAt: new Date() }).where(eq(users.id, userId));
+}
+
+export async function updateUserAccount(
+  userId: string,
+  patch: { role?: Role; isActive?: boolean },
+  executor: DbExecutor = db,
+): Promise<void> {
+  await executor
+    .update(users)
+    .set({ ...patch, updatedAt: new Date() })
+    .where(eq(users.id, userId));
+}
+
+/**
+ * How many administrators would remain if `userId` stopped being one.
+ *
+ * The guard against a system with no administrator at all: an ADMIN account
+ * may only be demoted or disabled while another active ADMIN exists.
+ */
+export async function countActiveAdminsOtherThan(
+  userId: string,
+  executor: DbExecutor = db,
+): Promise<number> {
+  const rows = await executor
+    .select({ value: count() })
+    .from(users)
+    .where(and(eq(users.role, 'ADMIN'), eq(users.isActive, true), ne(users.id, userId)));
+  return rows[0]?.value ?? 0;
 }
 
 export async function findUserIdForEmployee(

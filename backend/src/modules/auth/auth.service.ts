@@ -3,6 +3,7 @@ import { randomBytes } from 'node:crypto';
 import argon2 from 'argon2';
 
 import { env } from '../../config/env.js';
+import type { DbExecutor } from '../../db/client.js';
 import type { AuthContext } from '../../shared/auth-context.js';
 import { AppError } from '../../shared/errors.js';
 import { moduleLogger } from '../../shared/logger.js';
@@ -227,6 +228,19 @@ export async function logout(rawToken: string | undefined): Promise<void> {
  * All sessions are revoked afterwards, on the assumption that a password change
  * may be a response to compromise.
  */
+/**
+ * Ends every session of one account.
+ *
+ * The revocation point that stateless access tokens lack: after this, the
+ * next refresh fails and the user must sign in again — and at that point the
+ * server re-reads their role and active flag. Exposed as a service function so
+ * other modules (an account change, a termination) can end sessions without
+ * reaching into this module's repository.
+ */
+export async function revokeAllSessions(userId: string, executor?: DbExecutor): Promise<void> {
+  await repository.revokeAllUserTokens(userId, executor);
+}
+
 export async function changePassword(
   userId: string,
   currentPassword: string,
