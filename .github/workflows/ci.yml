@@ -54,7 +54,10 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          # Single source of truth: .nvmrc, which also drives local version managers
+          # and matches the node:22-alpine base image the Dockerfiles build on.
+          # Bumping the runtime is then one file, not four.
+          node-version-file: .nvmrc
           cache: npm
           cache-dependency-path: backend/package-lock.json
 
@@ -94,7 +97,10 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          # Single source of truth: .nvmrc, which also drives local version managers
+          # and matches the node:22-alpine base image the Dockerfiles build on.
+          # Bumping the runtime is then one file, not four.
+          node-version-file: .nvmrc
           cache: npm
           cache-dependency-path: frontend/package-lock.json
 
