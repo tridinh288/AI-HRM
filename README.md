@@ -591,6 +591,7 @@ Phiên bản Node lấy từ `.nvmrc` — một nguồn sự thật cho CI, máy
 │       ├── app/                  layout, chặn route theo role
 │       ├── components/ui.tsx     control dùng chung
 │       ├── features/auth/        ngữ cảnh phiên, đăng nhập
+│       ├── features/attendance/  form HR sửa bản ghi chấm công
 │       ├── features/employees/   form tạo / sửa / cho nghỉ việc
 │       ├── features/organisation/ form phòng ban và vị trí
 │       ├── lib/                  client api, kiểu, định dạng, ghi nhớ hội thoại trợ lý
