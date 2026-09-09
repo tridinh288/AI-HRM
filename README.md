@@ -1,67 +1,59 @@
 # AI-Powered HRM
 
-A Human Resource Management system for a small company, with an AI assistant that answers
-questions about HR data **without ever being given access to the database**.
+Hệ thống quản lý nhân sự cho một công ty nhỏ, có trợ lý AI trả lời câu hỏi về dữ liệu nhân sự
+**mà không bao giờ được cấp quyền truy cập database**.
 
-TypeScript end to end — React + Vite on the front, Express + PostgreSQL behind, Drizzle ORM
-for schema and migrations, Docker Compose to run the whole thing, and 216 tests that run
-against a real database.
+TypeScript từ đầu đến cuối — React + Vite phía trước, Express + PostgreSQL phía sau, Drizzle ORM
+cho schema và migration, Docker Compose để chạy trọn bộ, và 224 test chạy trên database thật.
+
+> Bản tiếng Anh: [README.en.md](README.en.md). Tài liệu thiết kế (tiếng Anh):
+> [`docs/DESIGN.md`](docs/DESIGN.md).
 
 ---
 
-## Why this project exists
+## Vì sao có dự án này
 
-Most HRM demos are CRUD forms over a few tables. Two things here are meant to be worth
-talking about instead:
+Phần lớn demo HRM là vài form CRUD trên vài bảng. Ở đây có hai điều đáng để nói đến:
 
-1. **The AI layer is a real authorization problem, solved in the backend.** The language
-   model chooses *which question to ask*; the server decides *whether this user may ask it*.
-   Section [AI architecture](#ai-architecture) explains how, and there is a test suite that
-   forces the model to attempt a privilege escalation and asserts that it fails.
+1. **Tầng AI là một bài toán phân quyền thật sự, và được giải ở backend.** Mô hình ngôn ngữ
+   chọn *câu hỏi nào nên hỏi*; server quyết định *người dùng này có được phép hỏi câu đó không*.
+   Mục [Kiến trúc AI](#kiến-trúc-ai) giải thích cách làm, và có một bộ test **ép** mô hình thử
+   leo thang đặc quyền rồi khẳng định rằng nó thất bại.
 
-2. **The business rules are enforced where they cannot be bypassed.** Double check-in is
-   prevented by a unique index rather than an `if` statement, leave approval deducts the
-   balance inside a transaction with a row lock, and a CHECK constraint refuses to store a
-   balance that exceeds its entitlement even if the application logic is wrong.
+2. **Quy tắc nghiệp vụ được thực thi ở nơi không thể lách.** Chấm công hai lần được chặn bằng
+   unique index chứ không phải câu `if`; duyệt nghỉ phép trừ số dư bên trong transaction có khoá
+   dòng; và một CHECK constraint từ chối lưu số dư vượt quá quyền lợi, kể cả khi logic ứng dụng
+   sai.
 
-Design decisions, including the ones that were rejected, are written up in
+Các quyết định thiết kế, gồm cả những phương án đã bị loại, được viết trong
 [`docs/DESIGN.md`](docs/DESIGN.md).
 
 ---
 
-## Features
+## Tính năng
 
-| Module | What it does |
+| Module | Làm được gì |
 |---|---|
-| **Authentication** | Argon2id password hashing, short-lived JWT access tokens, rotating refresh tokens stored hashed in the database with reuse detection, password change with session revocation |
-| **Employees** | Create (account + HR record + leave balances in one transaction), search, filter, sort, paginate, terminate; field-level authorization on salary |
-| **Departments & positions** | CRUD with live headcount, deactivation instead of deletion, foreign keys that refuse to orphan data |
-| **Attendance** | Check in / check out, late and overtime rules driven by configuration, HR corrections that recompute derived fields, monthly aggregates |
-| **Leave** | Request → approve / reject / cancel state machine, working-day counting that skips weekends, overlap detection, balance accounting under a row lock |
-| **Dashboard** | Headcount, today's attendance, pending approvals, and four charts built from raw SQL aggregations |
-| **AI HR Assistant** | Tool-calling against approved backend functions, role-filtered tool list, per-tool authorization, full audit trail, works offline with no API key |
+| **Xác thực** | Băm mật khẩu Argon2id, JWT access token ngắn hạn, refresh token xoay vòng lưu dạng băm trong database kèm phát hiện tái sử dụng, đổi mật khẩu có thu hồi phiên |
+| **Nhân viên** | Tạo (tài khoản + hồ sơ nhân sự + số dư nghỉ phép trong một transaction), sửa hồ sơ **kể cả lương** ngay trên giao diện, tìm kiếm, lọc, sắp xếp, phân trang, cho nghỉ việc; phân quyền tới cấp trường dữ liệu với lương |
+| **Phòng ban & vị trí** | CRUD kèm sĩ số cập nhật trực tiếp, vô hiệu hoá thay vì xoá, khoá ngoại từ chối để mồ côi dữ liệu |
+| **Chấm công** | Check in / check out, quy tắc đi muộn và tăng ca lấy từ cấu hình, HR sửa bản ghi thì các trường suy dẫn được tính lại, tổng hợp theo tháng |
+| **Nghỉ phép** | Máy trạng thái xin → duyệt / từ chối / huỷ, đếm ngày làm việc bỏ qua cuối tuần, phát hiện trùng lặp, hạch toán số dư dưới khoá dòng |
+| **Dashboard** | Sĩ số, chấm công hôm nay, đơn chờ duyệt, và bốn biểu đồ dựng từ SQL tổng hợp thuần |
+| **Trợ lý AI** | Gọi tool vào các hàm backend được phê duyệt, danh sách tool lọc theo role, phân quyền từng tool, audit đầy đủ; liệt kê nhân sự theo phòng ban thành bảng; hội thoại được lưu và mở lại; chạy offline không cần API key |
 
-Deliberately **not** built: payroll calculation and recruitment. Reasoning in
-[`docs/DESIGN.md` §1](docs/DESIGN.md).
-
----
-
-## Screenshots
-
-> Run `npm run db:seed` and sign in as `hr@hrm.local` to reproduce these.
-> _(Add your own screenshots here before submitting — a dashboard, the leave queue, and the
-> assistant showing its tool calls are the three worth including.)_
+Cố ý **không** làm: tính lương và tuyển dụng. Lý do trong [`docs/DESIGN.md` §1](docs/DESIGN.md).
 
 ---
 
-## Architecture
+## Kiến trúc
 
 ```mermaid
 flowchart TB
-    subgraph Client["Browser — React + TypeScript"]
-        UI[Pages & features]
-        RQ[TanStack Query cache]
-        AX[Axios + refresh interceptor]
+    subgraph Client["Trình duyệt — React + TypeScript"]
+        UI[Trang & tính năng]
+        RQ[Cache TanStack Query]
+        AX[Axios + interceptor làm mới token]
         UI --> RQ --> AX
     end
 
@@ -77,247 +69,253 @@ flowchart TB
             DASH[dashboard]
             AI[ai]
         end
-        ERR[Centralised error handler]
+        ERR[Bộ xử lý lỗi tập trung]
         MW --> Modules --> ERR
     end
 
     Modules --> DZ[(Drizzle ORM)]
-    DASH -->|raw SQL aggregations| DZ
+    DASH -->|SQL tổng hợp thuần| DZ
     DZ --> PG[(PostgreSQL 16)]
 
-    AI -->|tool schemas + message| LLM[["LLM provider<br/>(behind an interface)"]]
+    AI -->|schema tool + tin nhắn| LLM[["Nhà cung cấp LLM<br/>(sau một interface)"]]
     LLM -->|tool call| AI
-    AI -->|authorized service call| Modules
+    AI -->|gọi service đã phân quyền| Modules
 ```
 
-**Modular monolith**, not microservices. The problem microservices solve — independent
-scaling and independent deployment by separate teams — does not exist here, while the cost
-does: approving leave writes to two tables atomically, which would become a distributed saga.
-The module boundaries are real (`modules/leave` never reaches into another module's
-repository), so they remain the extraction seam if that ever changes.
+**Modular monolith**, không phải microservices. Vấn đề microservices giải quyết — scale độc lập và
+deploy độc lập bởi các team riêng — không tồn tại ở đây, còn cái giá thì có: duyệt nghỉ phép ghi
+vào hai bảng một cách nguyên tử, thứ sẽ thành distributed saga nếu tách dịch vụ. Ranh giới module
+là thật (`modules/leave` không bao giờ đụng vào repository của module khác), nên chúng vẫn là
+đường cắt nếu sau này cần tách.
 
-Each module is layered:
+Mỗi module chia tầng:
 
 ```
 modules/leave/
-  leave.routes.ts       routing + which middleware applies
-  leave.controller.ts   HTTP only: parse request → call service → shape response
-  leave.service.ts      business rules, transactions. No req/res, no SQL.
-  leave.repository.ts   data access. No business rules.
-  leave.policy.ts       pure functions — testable with no I/O
-  leave.schema.ts       Zod schemas: the single source of truth for validation
+  leave.routes.ts       định tuyến + middleware nào áp dụng
+  leave.controller.ts   chỉ HTTP: parse request → gọi service → định hình response
+  leave.service.ts      quy tắc nghiệp vụ, transaction. Không req/res, không SQL.
+  leave.repository.ts   truy cập dữ liệu. Không quy tắc nghiệp vụ.
+  leave.policy.ts       hàm thuần — test được mà không cần I/O
+  leave.schema.ts       schema Zod: nguồn sự thật duy nhất cho validation
 ```
 
-The controller/service split is not ceremony: the AI tool layer calls
-`leaveService.getBalance()` directly, which is only possible because services know nothing
-about Express.
+Tách controller/service không phải để cho đẹp: tầng tool của AI gọi thẳng
+`leaveService.getBalance()`, điều chỉ khả thi vì service không biết gì về Express.
 
 ---
 
-## Technology choices
+## Lựa chọn công nghệ
 
-| Decision | Alternative | Why |
+| Quyết định | Phương án khác | Vì sao |
 |---|---|---|
-| PostgreSQL | MongoDB | The data is relational and approving leave must be transactional. Referential integrity and ACID are the requirements. |
-| Drizzle ORM | Prisma | Drizzle's schema *is* TypeScript, migrations are generated as plain reviewable `.sql`, and its query builder stays close to the SQL it emits — which matters when the point is to demonstrate SQL, not to hide it. Prisma has the friendlier API and a bigger ecosystem; that was the trade-off. |
-| Raw SQL for dashboards | ORM query builder | `FILTER (WHERE …)`, `generate_series`, and window functions are clearer written out than expressed through a builder. Each of those queries is covered by an integration test, because TypeScript cannot check them. |
-| JWT + rotating refresh token | Server-side sessions | Stateless verification on the hot path, with a revocation point every 15 minutes. See [Authentication](#authentication). |
-| Refresh token in httpOnly cookie | localStorage | `localStorage` is readable by any script, so one XSS is a 7-day account takeover. The CSRF risk this introduces is handled with `SameSite=Strict` and a path-scoped cookie. |
-| Argon2id | bcrypt | Memory-hard, so GPU cracking is expensive. bcrypt would not be wrong. |
-| Zod | Joi, express-validator | Schemas infer TypeScript types, so the runtime check and the compile-time type cannot drift. The same schemas validate AI tool arguments. |
-| TanStack Query | Redux | Almost all state here is *server* state. Redux would mean hand-writing caching, refetching and invalidation. |
+| PostgreSQL | MongoDB | Dữ liệu có quan hệ và duyệt nghỉ phép phải là transaction. Toàn vẹn tham chiếu và ACID là yêu cầu. |
+| Drizzle ORM | Prisma | Schema của Drizzle *chính là* TypeScript, migration sinh ra là file `.sql` thuần review được, và query builder bám sát SQL nó phát ra — quan trọng khi mục đích là trình bày SQL chứ không phải giấu nó. Prisma có API thân thiện hơn và hệ sinh thái lớn hơn; đó là cái đánh đổi. |
+| SQL thuần cho dashboard | Query builder của ORM | `FILTER (WHERE …)`, `generate_series` và window function viết thẳng rõ hơn là diễn đạt qua builder. Mỗi query đó có integration test, vì TypeScript không kiểm tra được chúng. |
+| JWT + refresh token xoay vòng | Session phía server | Xác minh không trạng thái trên đường nóng, với điểm thu hồi mỗi 15 phút. Xem [Xác thực](#xác-thực). |
+| Refresh token trong cookie httpOnly | localStorage | `localStorage` script nào cũng đọc được, nên một lỗi XSS là chiếm tài khoản 7 ngày. Rủi ro CSRF kéo theo được xử lý bằng `SameSite=Strict` và cookie giới hạn path. |
+| Argon2id | bcrypt | Tốn bộ nhớ, nên bẻ khoá bằng GPU đắt. bcrypt cũng không sai. |
+| Zod | Joi, express-validator | Schema suy ra kiểu TypeScript, nên kiểm tra lúc chạy và kiểu lúc biên dịch không thể lệch nhau. Cùng bộ schema đó validate tham số tool của AI. |
+| TanStack Query | Redux | Gần như toàn bộ state ở đây là state *của server*. Redux nghĩa là tự viết caching, refetch và invalidation. |
 
 ---
 
 ## Database
 
-13 tables. Full ERD and the reasoning behind each constraint is in
-[`docs/DESIGN.md` §3](docs/DESIGN.md).
+13 bảng. ERD đầy đủ và lý do cho từng constraint nằm trong [`docs/DESIGN.md` §3](docs/DESIGN.md).
 
 ```mermaid
 erDiagram
-    users ||--|| employees : "has HR record"
-    users ||--o{ refresh_tokens : issues
-    departments ||--o{ employees : employs
-    positions   ||--o{ employees : classifies
-    employees ||--o{ attendance_records : records
-    employees ||--o{ leave_requests : submits
-    employees ||--o{ leave_balances : accrues
-    leave_types ||--o{ leave_requests : categorises
-    users ||--o{ ai_conversations : owns
-    ai_conversations ||--o{ ai_messages : contains
-    ai_messages ||--o{ ai_tool_invocations : triggers
+    users ||--|| employees : "có hồ sơ nhân sự"
+    users ||--o{ refresh_tokens : phát
+    departments ||--o{ employees : thuê
+    positions   ||--o{ employees : xếp
+    employees ||--o{ attendance_records : ghi
+    employees ||--o{ leave_requests : gửi
+    employees ||--o{ leave_balances : tích
+    leave_types ||--o{ leave_requests : phân_loại
+    users ||--o{ ai_conversations : sở_hữu
+    ai_conversations ||--o{ ai_messages : chứa
+    ai_messages ||--o{ ai_tool_invocations : kích_hoạt
 ```
 
-**Constraints that encode business rules**, rather than trusting application code:
+**Constraint mã hoá quy tắc nghiệp vụ**, thay vì tin vào code ứng dụng:
 
-| Constraint | What it prevents |
+| Constraint | Ngăn điều gì |
 |---|---|
-| `attendance_records (employee_id, work_date)` UNIQUE | Double check-in. Two concurrent requests both pass an application-level "does a record exist?" check; only one survives a unique index. |
-| `leave_balance_within_entitlement` CHECK | A balance where used days exceed the entitlement, whatever the service layer believes |
-| `employees_termination_consistent` CHECK | A terminated employee with no termination date, or vice versa |
-| `leave_decision_consistent` CHECK | A request marked approved with no record of who decided it |
-| `leave_dates_ordered` CHECK | Negative-length leave |
-| `users_email_lower_unique` | Two accounts answering to the same login in different cases |
-| `ON DELETE RESTRICT` on department/position | Orphaning employees by deleting a department |
+| `attendance_records (employee_id, work_date)` UNIQUE | Chấm công hai lần. Hai request đồng thời đều qua được kiểm tra "đã có bản ghi chưa?" ở tầng ứng dụng; chỉ một cái sống sót qua unique index. |
+| `leave_balance_within_entitlement` CHECK | Số dư có ngày đã dùng vượt quyền lợi, bất kể tầng service nghĩ gì |
+| `employees_termination_consistent` CHECK | Nhân viên đã nghỉ mà không có ngày nghỉ, hoặc ngược lại |
+| `leave_decision_consistent` CHECK | Đơn ghi là đã duyệt mà không có ai quyết định |
+| `leave_dates_ordered` CHECK | Nghỉ phép có độ dài âm |
+| `users_email_lower_unique` | Hai tài khoản cùng một email khác hoa thường |
+| `ON DELETE RESTRICT` trên phòng ban / vị trí | Mồ côi nhân viên do xoá phòng ban |
 
-**Deletion strategy:** nothing is hard-deleted. People are `TERMINATED` with a date;
-departments and positions are deactivated. A terminated employee is a real business state
-that HR still needs the history of — not a tombstone every query has to remember to filter.
+**Chiến lược xoá:** không gì bị xoá cứng. Người thì `TERMINATED` kèm ngày; phòng ban và vị trí
+thì vô hiệu hoá. Nhân viên đã nghỉ là một trạng thái nghiệp vụ thật mà HR vẫn cần lịch sử — không
+phải một bia mộ mà mọi query phải nhớ lọc ra.
 
 ---
 
-## Authentication
+## Xác thực
 
 ```mermaid
 sequenceDiagram
     autonumber
-    actor U as Browser
+    actor U as Trình duyệt
     participant API as Express
     participant DB as PostgreSQL
 
     U->>API: POST /auth/login
-    API->>DB: find user, verify Argon2id hash
-    API->>DB: store SHA-HMAC of a random refresh token
-    API-->>U: access token (JSON body, kept in memory)
-    API-->>U: refresh token (httpOnly, SameSite=Strict cookie)
+    API->>DB: tìm user, xác minh băm Argon2id
+    API->>DB: lưu SHA-HMAC của một refresh token ngẫu nhiên
+    API-->>U: access token (body JSON, giữ trong bộ nhớ)
+    API-->>U: refresh token (cookie httpOnly, SameSite=Strict)
 
-    Note over U,API: 15 minutes later
-    U->>API: any request → 401 TOKEN_EXPIRED
-    U->>API: POST /auth/refresh (cookie sent automatically)
-    API->>DB: look up hash, check not revoked, re-read role
-    API->>DB: revoke old token, store new one
-    API-->>U: new access token + rotated cookie
+    Note over U,API: 15 phút sau
+    U->>API: request bất kỳ → 401 TOKEN_EXPIRED
+    U->>API: POST /auth/refresh (cookie gửi tự động)
+    API->>DB: tra băm, kiểm tra chưa bị thu hồi, đọc lại role
+    API->>DB: thu hồi token cũ, lưu token mới
+    API-->>U: access token mới + cookie đã xoay
 ```
 
-Three details worth pointing out:
+Ba chi tiết đáng chú ý:
 
-- **Two tokens, two jobs.** The access token is a stateless JWT — verified with no database
-  round trip, which is the whole benefit and also the whole drawback, so it lives 15 minutes.
-  The refresh token is an opaque random string stored *hashed*; being a database row is what
-  makes logout, revocation and theft detection possible.
-- **Rotation with reuse detection.** Every refresh issues a new token and revokes the old one.
-  A well-behaved client never presents a revoked token — seeing one means two parties hold it,
-  so *every* session for that user is revoked. This is tested.
-- **Login never says which half was wrong.** Unknown email and wrong password return the same
-  code and the same message, and an unknown email is still verified against a dummy hash so
-  the two take the same time. Otherwise the endpoint is an account-enumeration oracle.
+- **Hai token, hai việc.** Access token là JWT không trạng thái — xác minh không cần chạm
+  database, đó vừa là toàn bộ lợi ích vừa là toàn bộ nhược điểm, nên nó chỉ sống 15 phút.
+  Refresh token là chuỗi ngẫu nhiên đục, lưu *dạng băm*; là một dòng trong database chính là điều
+  khiến logout, thu hồi và phát hiện đánh cắp khả thi.
+- **Xoay vòng kèm phát hiện tái sử dụng.** Mỗi lần refresh phát token mới và thu hồi token cũ.
+  Client tử tế không bao giờ đưa ra token đã thu hồi — thấy một cái nghĩa là hai bên đang giữ nó,
+  nên *mọi* phiên của user đó bị thu hồi. Điều này có test.
+- **Đăng nhập không bao giờ nói nửa nào sai.** Email lạ và mật khẩu sai trả cùng mã, cùng thông
+  báo, và email lạ vẫn được xác minh với một băm giả để hai trường hợp tốn thời gian như nhau. Nếu
+  không, endpoint này thành oracle dò tài khoản.
 
 ---
 
-## Authorization
+## Phân quyền
 
-Three roles, and authorization enforced in three places — none of which is the frontend.
+Ba role, và phân quyền thực thi ở ba nơi — không nơi nào là frontend.
 
-| Capability | ADMIN | HR | EMPLOYEE |
+| Khả năng | ADMIN | HR | EMPLOYEE |
 |---|:--:|:--:|:--:|
-| List / search all employees | ✅ | ✅ | ❌ |
-| View any employee's detail | ✅ | ✅ | own only |
-| **View `base_salary`** | ✅ | ✅ | **own only** |
-| Create employee accounts | ✅ | ✅ (EMPLOYEE role only) | ❌ |
-| Create HR / ADMIN accounts | ✅ | ❌ | ❌ |
-| Approve / reject leave | ✅ | ✅ | ❌ |
-| Correct attendance | ✅ | ✅ | ❌ |
-| Organisation dashboard | ✅ | ✅ | ❌ |
-| AI — personal questions | ✅ | ✅ | ✅ |
-| AI — organisation questions | ✅ | ✅ | ❌ |
+| Liệt kê / tìm mọi nhân viên | ✅ | ✅ | ❌ |
+| Xem chi tiết bất kỳ nhân viên | ✅ | ✅ | chỉ mình |
+| **Xem `base_salary`** | ✅ | ✅ | **chỉ mình** |
+| Tạo / sửa nhân viên (kể cả lương) | ✅ | ✅ (chỉ role EMPLOYEE khi tạo) | ❌ |
+| Tạo tài khoản HR / ADMIN | ✅ | ❌ | ❌ |
+| Duyệt / từ chối nghỉ phép | ✅ | ✅ | ❌ |
+| Sửa chấm công | ✅ | ✅ | ❌ |
+| Dashboard toàn công ty | ✅ | ✅ | ❌ |
+| AI — câu hỏi cá nhân | ✅ | ✅ | ✅ |
+| AI — câu hỏi toàn công ty | ✅ | ✅ | ❌ |
 
-1. **Route middleware** (`requireRole`) — coarse gate on the endpoint.
-2. **Service layer** (`assertCanAccessEmployee`) — row-level scope, because the answer depends
-   on which record was requested.
-3. **Response mapper** — `baseSalary` is stripped for viewers who may not see it. It is
-   *absent*, not null, so a frontend bug cannot render it as `0`.
+1. **Middleware route** (`requireRole`) — cổng thô ở endpoint.
+2. **Tầng service** (`assertCanAccessEmployee`) — phạm vi cấp dòng, vì câu trả lời phụ thuộc vào
+   bản ghi nào được yêu cầu.
+3. **Mapper response** — `baseSalary` bị tước khỏi response với người xem không được phép. Nó
+   *vắng mặt*, không phải null, nên một lỗi frontend không thể hiển thị nó thành `0`.
 
-For list endpoints, a non-privileged caller's `employeeId` filter is **overwritten** rather
-than validated. There is no code path in which an employee sees another employee's records,
-so a forgotten check cannot leak data.
+Với endpoint danh sách, filter `employeeId` của người gọi không có đặc quyền bị **ghi đè** thay
+vì validate. Không có đường code nào để một nhân viên thấy bản ghi của nhân viên khác, nên một
+kiểm tra bị quên cũng không rò dữ liệu.
 
-The React app hides what a role cannot use, but that is user experience, not security.
+App React ẩn những gì role không dùng được — nhưng đó là trải nghiệm, không phải bảo mật.
 
 ---
 
-## AI architecture
+## Kiến trúc AI
 
-> The model never receives database access, never receives credentials, and never decides
-> what a user may see. It chooses **which question to ask**; the backend decides **whether
-> this user may ask it**.
+> Mô hình không bao giờ nhận quyền truy cập database, không bao giờ nhận credential, và không
+> bao giờ quyết định người dùng được xem gì. Nó chọn **câu hỏi nào nên hỏi**; backend quyết định
+> **người dùng này có được hỏi câu đó không**.
 
 ```mermaid
 sequenceDiagram
     autonumber
-    actor U as User (EMPLOYEE)
+    actor U as Người dùng (EMPLOYEE)
     participant API as POST /ai/assistant
     participant ORCH as Orchestrator
     participant REG as Tool registry
     participant SVC as Domain services
     participant DB as PostgreSQL
-    participant LLM as LLM provider
+    participant LLM as Nhà cung cấp LLM
 
-    U->>API: "How many leave days do I have left?"
-    API->>ORCH: AuthContext { userId, role, employeeId } from verified JWT
-    ORCH->>REG: tools visible to this role
-    REG-->>ORCH: filtered tool schemas
-    ORCH->>LLM: system prompt + history + question + tools
+    U->>API: "Tôi còn bao nhiêu ngày phép?"
+    API->>ORCH: AuthContext { userId, role, employeeId } từ JWT đã xác minh
+    ORCH->>REG: tool mà role này thấy được
+    REG-->>ORCH: schema tool đã lọc
+    ORCH->>LLM: system prompt + lịch sử + câu hỏi + tool
     LLM-->>ORCH: tool_call get_my_leave_balance{}
     ORCH->>REG: authorize(tool, auth)
-    Note over REG: role allowed? args valid (Zod)?<br/>scope = self → employeeId from JWT
+    Note over REG: role được phép? tham số hợp lệ (Zod)?<br/>scope = self → employeeId từ JWT
     REG->>SVC: leaveRepository.listBalances(auth.employeeId)
-    SVC->>DB: parameterised query
+    SVC->>DB: query có tham số
     DB-->>ORCH: rows
-    ORCH->>LLM: tool result (facts only)
-    LLM-->>U: answer + which tools ran
+    ORCH->>LLM: kết quả tool (chỉ dữ kiện)
+    LLM-->>U: câu trả lời + những tool đã chạy
 ```
 
-### Why the model is not given SQL
+### Vì sao không cho mô hình viết SQL
 
-Text-to-SQL means the model's output is executed against the database. Then the only thing
-between an employee and `SELECT base_salary FROM employees` is the model's willingness to
-refuse — which is one prompt injection away. With tools, that request fails because **no such
-tool is exposed to that role**, and no tool anywhere returns salary.
+Text-to-SQL nghĩa là đầu ra của mô hình được thực thi trên database. Khi đó, thứ duy nhất đứng
+giữa một nhân viên và `SELECT base_salary FROM employees` là việc mô hình *chịu* từ chối — mà
+chỉ cần một câu prompt injection là xong. Với tool, yêu cầu đó thất bại vì **không có tool nào
+như vậy được cấp cho role đó**, và không tool nào trả về lương.
 
-Tools are also testable. `get_my_leave_balance` has a fixed signature that can be asserted on;
-a generated SQL string cannot.
+Tool cũng test được. `get_my_leave_balance` có chữ ký cố định để khẳng định; một chuỗi SQL sinh ra
+thì không.
 
-### The tool registry
+### Tool registry
 
-| Tool | Roles | Scope |
-|---|---|---|
-| `get_my_attendance_summary` | all | self |
-| `get_my_leave_balance` | all | self |
-| `get_my_leave_requests` | all | self |
-| `get_headcount` | HR, ADMIN | organisation |
-| `get_department_headcount` | HR, ADMIN | organisation |
-| `get_attendance_statistics` | HR, ADMIN | organisation |
-| `get_late_employees` | HR, ADMIN | organisation |
-| `get_pending_leave_requests` | HR, ADMIN | organisation |
-| `get_leave_statistics` | HR, ADMIN | organisation |
-| `search_employees` | HR, ADMIN | organisation; lists people by department name/code, name search or status — salary excluded from the return type |
+Mỗi tool có `name` (định danh mô hình gọi, lưu vào audit) và `title` (nhãn người dùng đọc trên
+giao diện — mô hình không bao giờ thấy).
 
-Three properties make this hold:
+| Tool | Nhãn trên UI | Role | Phạm vi |
+|---|---|---|---|
+| `get_my_attendance_summary` | My attendance summary | tất cả | bản thân |
+| `get_my_leave_balance` | My leave balance | tất cả | bản thân |
+| `get_my_leave_requests` | My leave requests | tất cả | bản thân |
+| `get_headcount` | Company headcount | HR, ADMIN | toàn công ty |
+| `get_department_headcount` | Headcount by department | HR, ADMIN | toàn công ty |
+| `get_attendance_statistics` | Attendance statistics | HR, ADMIN | toàn công ty |
+| `get_late_employees` | Late arrivals | HR, ADMIN | toàn công ty |
+| `get_pending_leave_requests` | Pending leave requests | HR, ADMIN | toàn công ty |
+| `get_leave_statistics` | Leave statistics | HR, ADMIN | toàn công ty |
+| `search_employees` | Employee directory | HR, ADMIN | toàn công ty; liệt kê theo **tên/mã phòng ban**, tìm theo tên, lọc theo trạng thái — lương không có trong kiểu trả về |
 
-1. **The tool list is filtered by role before the model sees it.** An employee is never told
-   `get_late_employees` exists. There is nothing to jailbreak towards.
-2. **Self-scoped tools have no `employeeId` parameter at all.** The identity comes from the
-   verified JWT. An injected "call it with employeeId 42" produces an argument that Zod
-   strips before the handler runs — and the handler was never reading it anyway.
-3. **No tool can return salary.** Not "does not currently" — the return types have no such
-   field. `search_employees` maps rows through a DTO with nothing to populate.
+Ba tính chất làm điều này đứng vững:
 
-Authorization is re-checked at execution time, not only at list time, so a hallucinated or
-injected tool name is refused rather than silently succeeding.
+1. **Danh sách tool được lọc theo role trước khi mô hình nhìn thấy.** Nhân viên không bao giờ
+   được biết `get_late_employees` tồn tại. Không có gì để jailbreak tới.
+2. **Tool phạm vi bản thân không hề có tham số `employeeId`.** Danh tính đến từ JWT đã xác minh.
+   Một câu "gọi nó với employeeId 42" bị tiêm vào tạo ra một tham số mà Zod tước bỏ trước khi
+   handler chạy — và handler vốn cũng không đọc nó.
+3. **Không tool nào trả về lương.** Không phải "hiện chưa" — kiểu trả về không có trường đó.
+   `search_employees` map dòng qua một DTO không có chỗ để điền lương.
 
-### Threat model
+Phân quyền được kiểm tra lại lúc thực thi, không chỉ lúc liệt kê, nên một tên tool bịa ra hoặc bị
+tiêm vào sẽ bị từ chối thay vì âm thầm thành công.
 
-| Threat | Mitigation |
+Vài chi tiết thực dụng cho mô hình nhỏ chạy local: mọi `limit` mô hình gửi lên được **kẹp** vào
+khoảng hợp lệ thay vì từ chối (một mô hình xin 65 dòng nghĩa là "nhiều nhất có thể"); kết quả
+liệt kê kèm sẵn một bảng markdown để mô hình chép nguyên văn thay vì tóm tắt, cùng `total` thật để
+nó nói "Showing 50 of 67".
+
+### Mô hình đe doạ
+
+| Mối đe doạ | Biện pháp |
 |---|---|
-| Direct prompt injection | Role-filtered tool list; no salary tool exists for any role; scope injected from the JWT |
-| Indirect injection (hostile text stored in an HR record) | Tool results are inserted as structured JSON in a dedicated role, never concatenated into the prompt; the system prompt states that tool output is data, not instructions |
-| Fabricated HR facts | The system prompt forbids answering data questions without a tool result, and the API returns which tools ran — the UI shows them, so an unsourced answer is visible |
-| Cost / abuse | Per-user hourly quota counted in the database, per-IP burst limiter, capped tool-call iterations, request timeout |
-| Provider outage or malformed response | Typed provider errors → HTTP 503 with a clear message. Never a made-up answer. |
-| Audit | Every tool call, **including refused ones**, is written to `ai_tool_invocations` with user, arguments and outcome |
+| Prompt injection trực tiếp | Danh sách tool lọc theo role; không role nào có tool lương; phạm vi tiêm từ JWT |
+| Injection gián tiếp (văn bản độc lưu trong hồ sơ nhân sự) | Kết quả tool được chèn dưới dạng JSON có cấu trúc trong role riêng, không bao giờ nối vào prompt; system prompt tuyên bố đầu ra tool là dữ liệu, không phải chỉ thị |
+| Bịa dữ kiện nhân sự | System prompt cấm trả lời câu hỏi dữ liệu khi chưa có kết quả tool, và API trả về những tool đã chạy — UI hiển thị chúng, nên câu trả lời không có nguồn là nhìn thấy được |
+| Chi phí / lạm dụng | Hạn mức mỗi giờ theo user đếm trong database, giới hạn bùng nổ theo IP, trần số vòng gọi tool, timeout request |
+| Nhà cung cấp sập hoặc trả về sai định dạng | Lỗi provider có kiểu → HTTP 503 kèm thông báo rõ. Không bao giờ bịa câu trả lời. |
+| Audit | Mọi lần gọi tool, **kể cả bị từ chối**, ghi vào `ai_tool_invocations` với user, tham số và kết quả |
 
-### Provider abstraction
+### Abstraction nhà cung cấp
 
 ```ts
 interface LlmProvider {
@@ -326,23 +324,22 @@ interface LlmProvider {
 }
 ```
 
-Three implementations: an OpenAI-compatible adapter (works with OpenAI, Groq, OpenRouter,
-Together, or a local Ollama), an Anthropic adapter, and `FakeLlmProvider`.
+Ba bản cài đặt: adapter tương thích OpenAI (chạy với OpenAI, Groq, OpenRouter, Together, hoặc
+Ollama local), adapter Anthropic, và `FakeLlmProvider`.
 
-The fake one earns its place twice. It lets the security tests **force** the model to attempt
-a specific privilege escalation — you cannot test that a hostile tool call is refused if you
-cannot make the model attempt one. And it lets the app run with no API key at all: it routes a
-handful of questions by keyword to *real* tool calls, so a reviewer can clone the repo and
-watch the whole authorization pipeline work for free.
+Bản giả xứng đáng có mặt vì hai lẽ. Nó cho phép test bảo mật **ép** mô hình thử một pha leo thang
+đặc quyền cụ thể — bạn không thể test rằng một lời gọi tool thù địch bị từ chối nếu không tạo ra
+được lời gọi đó. Và nó cho phép app chạy hoàn toàn không cần API key: nó định tuyến vài câu hỏi
+theo từ khoá tới những lời gọi tool *thật*, nên người review có thể clone repo và xem toàn bộ
+đường ống phân quyền chạy mà không mất gì.
 
-What `fake` cannot do is write prose: it prints the tool's JSON result verbatim under a notice
-saying so. Everything upstream of that — routing, authorization, the audit trail — is the real
-thing.
+Điều `fake` không làm được là viết thành câu: nó in nguyên kết quả JSON của tool kèm một dòng
+chú thích. Mọi thứ phía trên — định tuyến, phân quyền, audit — là hàng thật.
 
-### Running a real model without an API key
+### Chạy mô hình thật mà không cần API key
 
-A local [Ollama](https://ollama.com) server speaks the OpenAI Chat Completions shape, so it
-needs no code change — only configuration:
+Một server [Ollama](https://ollama.com) local nói cùng giao thức Chat Completions của OpenAI, nên
+không cần sửa code — chỉ cần cấu hình:
 
 ```bash
 ollama pull qwen2.5:3b
@@ -351,286 +348,291 @@ ollama pull qwen2.5:3b
 ```ini
 AI_PROVIDER=openai
 AI_MODEL=qwen2.5:3b
-AI_API_KEY=ollama              # unused by Ollama; the schema only requires it to be non-empty
+AI_API_KEY=ollama              # Ollama không dùng; schema chỉ yêu cầu khác rỗng
 AI_BASE_URL=http://localhost:11434/v1
-AI_TIMEOUT_MS=60000            # the first request pays for loading the model into memory
+AI_TIMEOUT_MS=60000            # request đầu tiên phải trả giá cho việc nạp mô hình vào bộ nhớ
 ```
 
-Two things decide whether this is pleasant or unusable:
+Hai điều quyết định trải nghiệm dễ chịu hay vô dụng:
 
-**Pick a model that supports tool calling.** The assistant is a tool-calling loop; a model
-without that capability will answer from the prompt alone and reach none of your data. The
-`qwen2.5` and `llama3.1` families do.
+**Chọn mô hình hỗ trợ tool calling.** Trợ lý là một vòng lặp gọi tool; mô hình không có khả năng
+đó sẽ trả lời từ prompt và không chạm được dữ liệu nào. Họ `qwen2.5` và `llama3.1` có hỗ trợ.
 
-**Pick one that fits in VRAM.** This matters more than parameter count. A 7B model at roughly
-5&nbsp;GB does not fit a 6&nbsp;GB card once the display takes its share, so Ollama splits the
-layers — and the fraction left on the CPU dominates the runtime. Measured on a 6&nbsp;GB
-RTX 4050, `qwen2.5:7b` loaded at 18% CPU / 82% GPU and took 25 seconds to produce three
-tokens, while `qwen2.5:3b` loaded at 100% GPU and answered a full question, tool call
-included, in about two seconds. Check the split with `ollama ps`; if the `PROCESSOR` column is
-not 100% GPU, choose a smaller model rather than waiting.
+**Chọn mô hình vừa VRAM.** Điều này quan trọng hơn số tham số. Mô hình 7B khoảng 5&nbsp;GB không
+vừa card 6&nbsp;GB sau khi màn hình lấy phần của nó, nên Ollama chia layer — và phần rơi vào CPU
+quyết định thời gian chạy. Đo trên RTX 4050 6&nbsp;GB: `qwen2.5:7b` nạp ở 18% CPU / 82% GPU và
+mất 25 giây để sinh ba token, còn `qwen2.5:3b` nạp 100% GPU và trả lời trọn một câu hỏi, gồm cả
+tool call, trong khoảng hai giây. Kiểm tra bằng `ollama ps`; nếu cột `PROCESSOR` không phải 100%
+GPU, hãy chọn mô hình nhỏ hơn thay vì ngồi đợi.
 
-Answers from a 3B model are noticeably weaker than from a hosted frontier model — expect
-clumsy phrasing, and check figures it states that no tool returned.
+Câu trả lời từ mô hình 3B yếu hơn rõ rệt so với mô hình thương mại — chờ đợi câu chữ lủng củng,
+định dạng dao động giữa các lần hỏi, và hãy kiểm tra những con số nó nêu mà không tool nào trả về.
 
 ---
 
-## Getting started
+## Bắt đầu
 
-### With Docker (nothing to install but Docker)
+### Bằng Docker (không cần cài gì ngoài Docker)
 
 ```bash
 cp .env.example .env
-# Generate two secrets and paste them into .env:
+# Sinh hai secret rồi dán vào .env:
 node -e "console.log(require('crypto').randomBytes(48).toString('base64url'))"
 
 docker compose up --build
 ```
 
-Then, in another terminal, apply migrations and load demo data:
+Rồi, ở terminal khác, áp dụng migration và nạp dữ liệu demo:
 
 ```bash
 docker compose exec api npm run db:deploy
 docker compose exec api node dist/db/seed.js
-# The generated passwords land inside the container; copy them out:
+# Mật khẩu sinh ra nằm trong container; chép ra ngoài:
 docker compose cp api:/app/seed-output/accounts.csv ./accounts.csv
 ```
 
-- Web app → <http://localhost:8080>
+- Web → <http://localhost:8080>
 - API → <http://localhost:4000/api/v1>
 - Health check → <http://localhost:4000/health>
 
-### Locally
+### Chạy trực tiếp
 
-Requires Node 20+ and a PostgreSQL 16 instance.
+Cần Node 22 (xem `.nvmrc`) và một PostgreSQL 16.
 
 ```bash
 # Backend
 cd backend
 npm install
-cp ../.env.example .env          # then edit DATABASE_URL and the two JWT secrets
+cp ../.env.example .env          # rồi sửa DATABASE_URL và hai secret JWT
 npm run db:migrate
 npm run db:seed
 npm run dev                       # http://localhost:4000
 
-# Frontend, in a second terminal
+# Frontend, ở terminal thứ hai
 cd frontend
 npm install
 npm run dev                       # http://localhost:5173
 ```
 
-### Demo accounts
+### Tài khoản demo
 
-Created by the seed. These three share the password `DemoPassw0rd!`; every other account has
-its own, listed in `backend/seed-output/accounts.csv` (git-ignored) after the seed runs. Nothing
-in the app reveals any of them — the login page is a login page.
+Do seed tạo. Ba tài khoản này dùng chung mật khẩu `DemoPassw0rd!`; mọi tài khoản còn lại có mật
+khẩu riêng, liệt kê trong `backend/seed-output/accounts.csv` (git-ignored) sau khi seed chạy.
+Không gì trong app tiết lộ chúng — trang đăng nhập chỉ là trang đăng nhập.
 
-| Role | Email | Sees |
+| Role | Email | Thấy gì |
 |---|---|---|
-| Admin | `admin@hrm.local` | Everything, including user management |
-| HR | `hr@hrm.local` | All employees, approvals, dashboard, all AI tools |
-| Employee | `employee@hrm.local` | Own records only, three personal AI tools |
+| Admin | `admin@hrm.local` | Mọi thứ, kể cả quản lý tài khoản |
+| HR | `hr@hrm.local` | Mọi nhân viên, duyệt phép, dashboard, mọi tool AI |
+| Employee | `employee@hrm.local` | Chỉ bản ghi của mình, ba tool AI cá nhân |
 
-The seed builds a company of 500 people across five departments — 485 active and 15 former —
-with three months of attendance (~30,000 records, including realistic late arrivals and
-forgotten check-outs) and ~640 leave requests in every state. Everything but the passwords is
-deterministic, so the same command always produces the same company.
+Seed dựng một công ty 500 người trong năm phòng ban — 485 đang làm và 15 đã nghỉ — với ba tháng
+chấm công (~30.000 bản ghi, gồm cả đi muộn và quên check-out như thật) và ~640 đơn nghỉ phép ở
+mọi trạng thái. Mọi thứ trừ mật khẩu là tất định, nên cùng một lệnh luôn cho ra cùng một công ty.
 
-It never deletes anything on its own: it fills an empty database and refuses to touch one that
-already has accounts. Wiping is a separate, explicit step:
+Nó không bao giờ tự xoá gì: chỉ đổ vào database trống và từ chối đụng vào database đã có tài
+khoản. Xoá là một bước riêng, phải gọi đích danh:
 
 ```bash
-npm run db:seed -- --reset       # discards every table and rebuilds from scratch
+npm run db:seed -- --reset       # bỏ mọi bảng và dựng lại từ đầu
 ```
 
 ---
 
-## Environment variables
+## Biến môi trường
 
-Every variable is validated with Zod at startup — a missing or malformed value crashes the
-process with a readable message rather than surfacing as `undefined` three hours later. See
-[`.env.example`](.env.example) for the full list.
+Mọi biến được validate bằng Zod lúc khởi động — thiếu hoặc sai định dạng làm process sập ngay với
+thông báo đọc được, thay vì hiện thành `undefined` ba tiếng sau. Xem [`.env.example`](.env.example)
+để có danh sách đầy đủ.
 
-| Variable | Default | Notes |
+| Biến | Mặc định | Ghi chú |
 |---|---|---|
-| `DATABASE_URL` | — | Required |
-| `JWT_ACCESS_SECRET` / `JWT_REFRESH_SECRET` | — | Required, ≥32 chars, must differ |
+| `DATABASE_URL` | — | Bắt buộc |
+| `JWT_ACCESS_SECRET` / `JWT_REFRESH_SECRET` | — | Bắt buộc, ≥32 ký tự, phải khác nhau |
 | `JWT_ACCESS_TTL` | `15m` | |
 | `JWT_REFRESH_TTL_DAYS` | `7` | |
-| `WORK_START` / `WORK_END` | `08:00` / `17:30` | Attendance policy — config, not literals in code |
+| `WORK_START` / `WORK_END` | `08:00` / `17:30` | Chính sách chấm công — cấu hình, không phải hằng trong code |
 | `LATE_GRACE_MINUTES` | `5` | |
-| `BREAK_MINUTES` | `60` | Unpaid break deducted from a full day |
-| `COMPANY_TIMEZONE` | `Asia/Ho_Chi_Minh` | Attendance is stored as UTC instants; "late" is a local-time question |
+| `BREAK_MINUTES` | `60` | Giờ nghỉ không lương trừ khỏi ngày làm đủ |
+| `COMPANY_TIMEZONE` | `Asia/Ho_Chi_Minh` | Chấm công lưu theo UTC; "đi muộn" là câu hỏi theo giờ địa phương |
 | `AI_PROVIDER` | `fake` | `openai` \| `anthropic` \| `fake` |
-| `AI_API_KEY` | — | Required unless the provider is `fake`; any non-empty value for Ollama |
-| `AI_BASE_URL` | OpenAI | Any OpenAI-compatible host. Ignored when the provider is `anthropic` |
-| `AI_TIMEOUT_MS` | `30000` | Raise for a local model — the first request loads it into memory |
-| `AI_MAX_TOOL_ITERATIONS` | `5` | Caps cost and request duration |
-| `AI_RATE_LIMIT_PER_HOUR` | `30` | Per user, counted in the database |
+| `AI_API_KEY` | — | Bắt buộc trừ khi provider là `fake`; với Ollama điền giá trị bất kỳ |
+| `AI_BASE_URL` | OpenAI | Host tương thích OpenAI bất kỳ. Bị bỏ qua khi provider là `anthropic` |
+| `AI_TIMEOUT_MS` | `30000` | Tăng lên với mô hình local — request đầu tiên nạp mô hình vào bộ nhớ |
+| `AI_MAX_TOOL_ITERATIONS` | `5` | Chặn chi phí và thời gian request |
+| `AI_RATE_LIMIT_PER_HOUR` | `30` | Theo user, đếm trong database |
 
-No secret is committed, and none is baked into a Dockerfile.
+Không secret nào được commit, không cái nào được nướng vào Dockerfile.
 
 ---
 
 ## API
 
-`/api/v1`, consistent envelope on every response:
+`/api/v1`, một phong bì nhất quán cho mọi response:
 
 ```jsonc
 { "data": { }, "meta": { "page": 1, "pageSize": 20, "total": 137 } }
 { "error": { "code": "LEAVE_BALANCE_EXCEEDED", "message": "…", "requestId": "…" } }
 ```
 
-| Method | Path | Roles |
+| Method | Path | Role |
 |---|---|---|
-| POST | `/auth/login`, `/auth/refresh`, `/auth/logout` | public / cookie |
-| GET | `/auth/me` | authenticated |
-| POST | `/auth/change-password` | authenticated |
-| GET/POST | `/employees` | HR, ADMIN |
-| GET | `/employees/me`, `/employees/:id` | authenticated (own record, or HR/ADMIN) |
-| PATCH | `/employees/me`, `/employees/:id` | self (limited fields) / HR, ADMIN |
+| POST | `/auth/login`, `/auth/refresh`, `/auth/logout` | công khai / cookie |
+| GET | `/auth/me` | đã xác thực |
+| POST | `/auth/change-password` | đã xác thực |
+| GET/POST | `/employees` | HR, ADMIN (`?department=` lọc theo tên/mã phòng ban) |
+| GET | `/employees/me`, `/employees/:id` | đã xác thực (bản ghi của mình, hoặc HR/ADMIN) |
+| PATCH | `/employees/me`, `/employees/:id` | bản thân (ít trường) / HR, ADMIN |
 | POST | `/employees/:id/terminate` | HR, ADMIN |
-| GET/POST/PATCH | `/departments`, `/positions` | read: all · write: HR, ADMIN |
-| POST | `/attendance/check-in`, `/attendance/check-out` | authenticated |
-| GET | `/attendance`, `/attendance/today`, `/attendance/summary` | scoped by role |
+| GET/POST/PATCH | `/departments`, `/positions` | đọc: tất cả · ghi: HR, ADMIN |
+| POST | `/attendance/check-in`, `/attendance/check-out` | đã xác thực |
+| GET | `/attendance`, `/attendance/today`, `/attendance/summary` | theo phạm vi role |
 | PATCH | `/attendance/:id` | HR, ADMIN |
-| GET/POST | `/leave/requests`, `/leave/balances`, `/leave/types` | scoped by role |
-| PATCH | `/leave/requests/:id/approve` \| `/reject` \| `/cancel` | HR, ADMIN / owner |
+| GET/POST | `/leave/requests`, `/leave/balances`, `/leave/types` | theo phạm vi role |
+| PATCH | `/leave/requests/:id/approve` \| `/reject` \| `/cancel` | HR, ADMIN / chủ đơn |
 | GET | `/dashboard/overview`, `/charts`, `/late-employees` | HR, ADMIN |
-| POST | `/ai/assistant` | authenticated, rate limited |
-| GET | `/ai/capabilities`, `/ai/conversations` | authenticated |
+| POST | `/ai/assistant` | đã xác thực, có rate limit |
+| GET | `/ai/capabilities`, `/ai/conversations`, `/ai/conversations/:id` | đã xác thực (hội thoại kèm tool call của từng câu trả lời) |
 
-Status codes: `400` validation · `401` unauthenticated or expired · `403` authenticated but
-not permitted · `404` not found · `409` business conflict · `429` rate limited · `503` AI
-provider unavailable.
+Mã trạng thái: `400` validation · `401` chưa xác thực hoặc hết hạn · `403` đã xác thực nhưng
+không được phép · `404` không tìm thấy · `409` xung đột nghiệp vụ · `429` bị giới hạn · `503`
+nhà cung cấp AI không sẵn sàng.
 
-`401` means "who are you?"; `403` means "I know who you are and the answer is no".
+`401` nghĩa là "bạn là ai?"; `403` nghĩa là "tôi biết bạn là ai và câu trả lời là không".
 
 ---
 
-## Testing
+## Kiểm thử
 
 ```bash
 cd backend && npm test
 ```
 
-**216 tests, all against a real PostgreSQL database.** Not a mock — this project's correctness
-leans on unique indexes, CHECK constraints, `SELECT … FOR UPDATE` and transaction rollback,
-none of which a mock reproduces. A suite that mocks the database cannot tell you whether
-double check-in is actually prevented.
+**224 test, tất cả chạy trên PostgreSQL thật.** Không mock — tính đúng đắn của dự án này dựa vào
+unique index, CHECK constraint, `SELECT … FOR UPDATE` và rollback transaction, những thứ không
+mock nào tái tạo được. Một bộ test mock database không thể cho bạn biết chấm công hai lần có
+thực sự bị chặn hay không.
 
-| Suite | Tests | Covers |
+| Bộ test | Số test | Bao phủ |
 |---|--:|---|
-| `attendance.policy.test.ts` | 22 | Late/overtime/worked-minutes rules, timezone boundaries, weekend arithmetic — pure functions, no I/O |
-| `leave.policy.test.ts` | 16 | Date validation, working-day counting, balance maths, state machine |
-| `auth.test.ts` | 19 | Login, token expiry vs tampering, refresh rotation, **reuse detection**, password change |
-| `authorization.test.ts` | 30 | Every protected endpoint called by the wrong role; mass-assignment; privilege escalation |
-| `ai.test.ts` | 24 | Role-filtered tools, refused calls, scope injection, audit trail, provider failures, quota |
-| `employees.test.ts` | 22 | Transaction rollback, duplicate constraints, SQL-injection-shaped input, pagination |
-| `attendance.test.ts` | 18 | Double check-in, check-out without check-in, HR corrections |
-| `leave.test.ts` | 20 | Overlap, balance, approval transaction, self-approval, cancellation |
-| `dashboard.test.ts` | 9 | Every raw SQL aggregation |
+| `attendance.policy.test.ts` | 22 | Quy tắc đi muộn / tăng ca / phút làm việc, ranh giới múi giờ, số học cuối tuần — hàm thuần, không I/O |
+| `leave.policy.test.ts` | 16 | Validate ngày, đếm ngày làm việc, tính số dư, máy trạng thái |
+| `anthropic.provider.test.ts` | 14 | Định dạng request tới Anthropic: không gửi `temperature`, thinking block được replay nguyên vẹn, ánh xạ lỗi |
+| `openai.provider.test.ts` | 22 | Định dạng request tương thích OpenAI: base URL giữ nguyên, tham số tool dạng chuỗi JSON, JSON cụt được báo lỗi thay vì ném |
+| `auth.test.ts` | 19 | Đăng nhập, hết hạn token vs giả mạo, xoay vòng refresh, **phát hiện tái sử dụng**, đổi mật khẩu |
+| `authorization.test.ts` | 30 | Mọi endpoint được bảo vệ gọi bởi sai role; mass-assignment; leo thang đặc quyền |
+| `ai.test.ts` | 31 | Tool lọc theo role, lời gọi bị từ chối, tiêm phạm vi, liệt kê theo phòng ban, kẹp `limit`, replay hội thoại, audit, lỗi provider, hạn mức |
+| `employees.test.ts` | 23 | Rollback transaction, constraint trùng lặp, đầu vào hình dạng SQL injection, lọc theo tên phòng ban, phân trang |
+| `attendance.test.ts` | 18 | Chấm công hai lần, check-out không có check-in, HR sửa bản ghi |
+| `leave.test.ts` | 20 | Trùng lặp, số dư, transaction duyệt, tự duyệt, huỷ |
+| `dashboard.test.ts` | 9 | Mọi câu SQL tổng hợp thuần |
 
-Examples of what is asserted:
+Vài ví dụ về những gì được khẳng định:
 
 ```
-EMPLOYEE → GET /employees/<other id>              → 403 NOT_YOUR_RECORD
-EMPLOYEE → PATCH /leave-requests/<id>/approve     → 403 INSUFFICIENT_ROLE
-HR       → POST /employees {role: "ADMIN"}        → 403 INSUFFICIENT_ROLE
-HR approving their own leave request              → 409 CANNOT_APPROVE_OWN_REQUEST
-Second check-in the same day                      → 409, backed by a unique index
-AI: EMPLOYEE forced to call get_late_employees    → denied and audited
-AI: injected employeeId in tool arguments         → stripped; JWT identity used
-AI: provider times out                            → 503, never a fabricated answer
+EMPLOYEE → GET /employees/<id người khác>              → 403 NOT_YOUR_RECORD
+EMPLOYEE → PATCH /leave-requests/<id>/approve            → 403 INSUFFICIENT_ROLE
+HR       → POST /employees {role: "ADMIN"}               → 403 INSUFFICIENT_ROLE
+HR tự duyệt đơn nghỉ phép của mình                        → 409 CANNOT_APPROVE_OWN_REQUEST
+Chấm công lần hai trong ngày                             → 409, nhờ unique index
+AI: EMPLOYEE bị ép gọi get_late_employees                → bị từ chối và ghi audit
+AI: EMPLOYEE bị ép gọi search_employees theo phòng ban   → bị từ chối, không lộ dòng nào
+AI: employeeId tiêm vào tham số tool                     → bị tước; dùng danh tính từ JWT
+AI: provider timeout                                     → 503, không bao giờ bịa câu trả lời
 ```
 
-**Two real bugs were found by these tests during development**, both of which are the kind a
-mock would have hidden:
+**Hai lỗi thật được bộ test này tìm ra trong lúc phát triển**, đều thuộc loại mà mock sẽ giấu đi:
 
-1. Drizzle wraps driver errors, so `error.code === '23505'` never matched and every
-   unique-violation conflict was reported as a 500 instead of a 409.
-2. Drizzle renders column references unqualified, so a correlated subquery compiled to
-   `"department_id" = "id"` — comparing `employees.department_id` to `employees.id`. Valid
-   SQL, no error, and every department silently reported zero employees.
+1. Drizzle bọc lỗi của driver, nên `error.code === '23505'` không bao giờ khớp và mọi xung đột
+   unique bị báo là 500 thay vì 409.
+2. Drizzle in tham chiếu cột không có tiền tố bảng, nên một subquery tương quan biên dịch thành
+   `"department_id" = "id"` — so sánh `employees.department_id` với `employees.id`. SQL hợp lệ,
+   không lỗi, và mọi phòng ban âm thầm báo không có nhân viên.
+
+**Và một lỗi mà bộ test này không bắt được**, đáng ghi lại vì nó chỉ ra ranh giới của bộ test:
+ba control form (`Input`, `Select`, `Textarea`) không forward `ref`, nên react-hook-form đọc giá
+trị từ một ref giả và mọi ô nhập gõ tay nộp lên `undefined`. Không integration test nào phía
+backend thấy được điều đó — request chưa bao giờ được gửi đi. Nó được người dùng phát hiện ở màn
+hình đăng nhập, và được tái hiện trong jsdom trước khi sửa.
 
 ---
 
 ## CI
 
-[`.github/workflows/ci.yml`](.github/workflows/ci.yml) runs on every push and pull request:
+[`.github/workflows/ci.yml`](.github/workflows/ci.yml) chạy với mọi push và pull request vào
+`main` và `develop`:
 
-1. **Backend** — `npm ci` → lint → typecheck → apply migrations → test (against a real
-   PostgreSQL service container) → build
+1. **Backend** — `npm ci` → lint → typecheck → áp dụng migration → test (trên một service container
+   PostgreSQL thật) → build
 2. **Frontend** — `npm ci` → lint → typecheck → build
-3. **Docker** — both images build, only after the code is known good
+3. **Docker** — build cả hai image, chỉ sau khi code đã được xác nhận tốt
+
+Phiên bản Node lấy từ `.nvmrc` — một nguồn sự thật cho CI, máy dev và các Dockerfile.
 
 ---
 
-## Project structure
+## Cấu trúc dự án
 
 ```
 .
 ├── backend/
-│   ├── drizzle/                  generated SQL migrations (committed, reviewable)
+│   ├── drizzle/                  migration SQL sinh ra (commit, review được)
+│   ├── seed-output/              mật khẩu do seed sinh — git-ignored
 │   ├── src/
-│   │   ├── config/env.ts         Zod-validated environment, fails fast at boot
+│   │   ├── config/env.ts         môi trường validate bằng Zod, sập sớm lúc khởi động
 │   │   ├── db/                   schema, client, seed
-│   │   ├── middlewares/          auth, validation, error handler, request context
+│   │   ├── middlewares/          auth, validation, xử lý lỗi, ngữ cảnh request
 │   │   ├── modules/              auth · employees · departments · positions
 │   │   │                         attendance · leave · dashboard · ai
-│   │   ├── shared/               errors, http envelope, logger, calendar, audit
-│   │   ├── app.ts                middleware chain (no server)
-│   │   └── server.ts             listen + graceful shutdown
-│   └── tests/                    integration + authorization suites
+│   │   ├── shared/               lỗi, phong bì http, logger, lịch, audit
+│   │   ├── app.ts                chuỗi middleware (không có server)
+│   │   └── server.ts             listen + tắt êm
+│   └── tests/                    bộ integration + phân quyền
 ├── frontend/
 │   └── src/
-│       ├── app/                  layout, route guard
-│       ├── components/ui.tsx     shared primitives
-│       ├── features/auth/        session context, login
-│       ├── lib/                  api client, types, formatting
+│       ├── app/                  layout, chặn route theo role
+│       ├── components/ui.tsx     control dùng chung
+│       ├── features/auth/        ngữ cảnh phiên, đăng nhập
+│       ├── features/employees/   form tạo / sửa nhân viên
+│       ├── lib/                  client api, kiểu, định dạng, ghi nhớ hội thoại trợ lý
 │       └── pages/                dashboard · employees · attendance · leave · assistant
-├── docs/DESIGN.md                design decisions and rejected alternatives
+├── docs/DESIGN.md                quyết định thiết kế và phương án bị loại (tiếng Anh)
+├── README.en.md                  bản tiếng Anh của tài liệu này
 ├── docker-compose.yml
 └── .github/workflows/ci.yml
 ```
 
 ---
 
-## Known limitations
+## Giới hạn đã biết
 
-Stated plainly, because a README that overclaims is worse than one that admits its edges.
+Nói thẳng, vì một README nói quá tệ hơn một README thừa nhận ranh giới của mình.
 
-- **No public holiday calendar.** Leave counting excludes weekends but not public holidays, so
-  a request spanning Tết is overcharged. Fixing it properly means a holidays table and an
-  admin UI for it.
-- **No half-day leave.** Leave is counted in whole days.
-- **Login rate limiting is per IP.** An attacker with many addresses gets many buckets, and
-  users behind one corporate NAT share one. Per-account lockout would be the complement.
-- **No email.** Password reset, approval notifications and welcome emails are not implemented;
-  HR sets the initial password directly.
-- **No file uploads.** No avatars, no contract documents.
-- **No manager hierarchy.** Approvals go to any HR user rather than being routed by reporting
-  line — which is why there is no `MANAGER` role. Adding the role without the hierarchy would
-  be decoration.
-- **Offset pagination.** Fine at this scale; cursor pagination would be needed at hundreds of
-  thousands of rows.
-- **The AI assistant is read-only.** It cannot approve leave or change records, by design.
-- **Prompt injection is mitigated, not solved.** The structural defences (role-filtered tools,
-  JWT-derived scope, no salary in any return type) hold regardless of what the model is talked
-  into. The prompt-level defences are best-effort.
+- **Không có lịch ngày lễ.** Đếm ngày phép bỏ qua cuối tuần nhưng không bỏ ngày lễ, nên một đơn
+  trùng dịp Tết bị tính dư. Sửa đúng cách cần một bảng ngày lễ và giao diện quản trị cho nó.
+- **Không có nghỉ nửa ngày.** Phép đếm theo ngày nguyên.
+- **Rate limit đăng nhập theo IP.** Kẻ tấn công có nhiều địa chỉ thì có nhiều bucket, còn người
+  dùng sau một NAT công ty thì dùng chung một. Khoá theo tài khoản sẽ là phần bổ sung.
+- **Không có email.** Đặt lại mật khẩu, thông báo duyệt và email chào mừng chưa làm; HR đặt mật
+  khẩu ban đầu trực tiếp.
+- **Không upload file.** Không ảnh đại diện, không hợp đồng.
+- **Không có cây quản lý.** Đơn đi tới bất kỳ HR nào thay vì theo tuyến báo cáo — đó là lý do
+  không có role `MANAGER`. Thêm role mà không có cây thì chỉ là trang trí.
+- **Phân trang offset.** Ổn ở quy mô này; đến hàng trăm nghìn dòng sẽ cần cursor.
+- **Trợ lý AI chỉ đọc.** Nó không duyệt phép hay sửa bản ghi, theo thiết kế.
+- **Prompt injection được giảm nhẹ, không phải giải quyết.** Các phòng thủ cấu trúc (tool lọc
+  theo role, phạm vi từ JWT, không có lương trong kiểu trả về nào) đứng vững bất kể mô hình bị
+  thuyết phục điều gì. Phòng thủ ở tầng prompt là nỗ lực tốt nhất có thể.
+- **Mô hình local nhỏ không ổn định về định dạng.** Với `qwen2.5:3b`, câu trả lời lúc là bảng
+  nguyên vẹn, lúc là danh sách, lúc có thêm đoạn dẫn — dữ liệu đúng, hình thức dao động. Mô hình
+  lớn hơn hoặc nhà cung cấp thương mại cho kết quả đều hơn.
 
-## Possible next steps
+## Hướng phát triển
 
-- Public holiday calendar and half-day leave
-- Manager role with a reporting hierarchy, and approvals routed along it
-- Payroll built on the existing attendance and leave data
-- Email notifications for approvals
-- Per-account login lockout alongside the per-IP limit
-- Deployment: the backend is a stateless container and the frontend a static bundle, so
-  Render/Fly + a managed PostgreSQL would work without code changes
-
----
-
-## Licence
-
-MIT.
+- Lịch ngày lễ và nghỉ nửa ngày
+- Role quản lý với cây báo cáo, và đơn được định tuyến theo đó
+- Tính lương dựa trên dữ liệu chấm công và nghỉ phép sẵn có
+- Thông báo email khi duyệt
+- Khoá đăng nhập theo tài khoản bên cạnh giới hạn theo IP
+- Triển khai: backend là container không trạng thái và frontend là bundle tĩnh, nên Render/Fly
+  cộng một PostgreSQL có quản lý sẽ chạy mà không cần sửa code
