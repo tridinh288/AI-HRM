@@ -4,7 +4,7 @@ A Human Resource Management system for a small company, with an AI assistant tha
 questions about HR data **without ever being given access to the database**.
 
 TypeScript end to end — React + Vite on the front, Express + PostgreSQL behind, Drizzle ORM
-for schema and migrations, Docker Compose to run the whole thing, and 180 tests that run
+for schema and migrations, Docker Compose to run the whole thing, and 194 tests that run
 against a real database.
 
 ---
@@ -463,7 +463,7 @@ provider unavailable.
 cd backend && npm test
 ```
 
-**180 tests, all against a real PostgreSQL database.** Not a mock — this project's correctness
+**194 tests, all against a real PostgreSQL database.** Not a mock — this project's correctness
 leans on unique indexes, CHECK constraints, `SELECT … FOR UPDATE` and transaction rollback,
 none of which a mock reproduces. A suite that mocks the database cannot tell you whether
 double check-in is actually prevented.
