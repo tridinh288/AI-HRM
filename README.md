@@ -392,6 +392,8 @@ Then, in another terminal, apply migrations and load demo data:
 ```bash
 docker compose exec api npm run db:deploy
 docker compose exec api node dist/db/seed.js
+# The generated passwords land inside the container; copy them out:
+docker compose cp api:/app/seed-output/accounts.csv ./accounts.csv
 ```
 
 - Web app → <http://localhost:8080>
@@ -419,7 +421,9 @@ npm run dev                       # http://localhost:5173
 
 ### Demo accounts
 
-Created by the seed. All share the password `DemoPassw0rd!`.
+Created by the seed. These three share the password `DemoPassw0rd!`; every other account has
+its own, listed in `backend/seed-output/accounts.csv` (git-ignored) after the seed runs. Nothing
+in the app reveals any of them — the login page is a login page.
 
 | Role | Email | Sees |
 |---|---|---|
@@ -427,10 +431,17 @@ Created by the seed. All share the password `DemoPassw0rd!`.
 | HR | `hr@hrm.local` | All employees, approvals, dashboard, all AI tools |
 | Employee | `employee@hrm.local` | Own records only, three personal AI tools |
 
-The seed builds a company of 50 employees across five departments, three months of attendance
-(~3,000 records, including realistic late arrivals and forgotten check-outs) and ~70 leave
-requests in every state. It is deterministic, so the same command always produces the same
-company.
+The seed builds a company of 500 people across five departments — 485 active and 15 former —
+with three months of attendance (~30,000 records, including realistic late arrivals and
+forgotten check-outs) and ~640 leave requests in every state. Everything but the passwords is
+deterministic, so the same command always produces the same company.
+
+It never deletes anything on its own: it fills an empty database and refuses to touch one that
+already has accounts. Wiping is a separate, explicit step:
+
+```bash
+npm run db:seed -- --reset       # discards every table and rebuilds from scratch
+```
 
 ---
 

@@ -21,3 +21,6 @@ postgres-data/
 # Build output
 backend/dist/
 frontend/dist/
+
+# Credentials written by `npm run db:seed` — one password per generated account
+backend/seed-output/
