@@ -12,6 +12,6 @@
     "build": "npm --prefix backend run build && npm --prefix frontend run build"
   },
   "engines": {
-    "node": ">=20"
+    "node": ">=22"
   }
 }
