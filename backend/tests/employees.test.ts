@@ -379,6 +379,89 @@ describe('departments', () => {
   });
 });
 
+describe('PATCH /employees/me — what an employee may change about themselves', () => {
+  async function anEmployee(): Promise<TestUser> {
+    return createTestUser({
+      role: 'EMPLOYEE',
+      departmentId: refs.departmentId,
+      baseSalary: 20_000_000,
+    });
+  }
+
+  it('updates the two allowed fields', async () => {
+    const employee = await anEmployee();
+
+    const response = await api()
+      .patch(`${API}/employees/me`)
+      .set('Authorization', `Bearer ${tokenFor(employee)}`)
+      .send({ phone: '0912345678', address: '12 Le Loi, District 1' });
+
+    expect(response.status).toBe(200);
+    expect(response.body.data.phone).toBe('0912345678');
+    expect(response.body.data.address).toBe('12 Le Loi, District 1');
+  });
+
+  it('clears a field when it is sent as null', async () => {
+    // Both columns are nullable, so somebody who typed the wrong number has to
+    // be able to remove it rather than being stuck with a wrong value forever.
+    const employee = await anEmployee();
+
+    await api()
+      .patch(`${API}/employees/me`)
+      .set('Authorization', `Bearer ${tokenFor(employee)}`)
+      .send({ phone: '0912345678', address: 'Somewhere' });
+
+    const response = await api()
+      .patch(`${API}/employees/me`)
+      .set('Authorization', `Bearer ${tokenFor(employee)}`)
+      .send({ phone: null, address: null });
+
+    expect(response.status).toBe(200);
+    expect(response.body.data.phone).toBeNull();
+    expect(response.body.data.address).toBeNull();
+  });
+
+  it('leaves an omitted field alone — undefined is not the same as null', async () => {
+    const employee = await anEmployee();
+
+    await api()
+      .patch(`${API}/employees/me`)
+      .set('Authorization', `Bearer ${tokenFor(employee)}`)
+      .send({ phone: '0912345678', address: 'Keep me' });
+
+    const response = await api()
+      .patch(`${API}/employees/me`)
+      .set('Authorization', `Bearer ${tokenFor(employee)}`)
+      .send({ phone: null });
+
+    expect(response.status).toBe(200);
+    expect(response.body.data.phone).toBeNull();
+    expect(response.body.data.address).toBe('Keep me');
+  });
+
+  it('rejects a malformed phone number', async () => {
+    const employee = await anEmployee();
+
+    const response = await api()
+      .patch(`${API}/employees/me`)
+      .set('Authorization', `Bearer ${tokenFor(employee)}`)
+      .send({ phone: 'not a phone number' });
+
+    expect(response.status).toBe(400);
+  });
+
+  it('rejects a body with nothing to change', async () => {
+    const employee = await anEmployee();
+
+    const response = await api()
+      .patch(`${API}/employees/me`)
+      .set('Authorization', `Bearer ${tokenFor(employee)}`)
+      .send({});
+
+    expect(response.status).toBe(400);
+  });
+});
+
 describe('unknown routes', () => {
   it('returns a structured 404', async () => {
     const response = await api()

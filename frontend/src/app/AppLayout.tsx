@@ -84,7 +84,18 @@ export function AppLayout() {
       {nav}
 
       <div className="border-t border-slate-200 pt-4">
-        <div className="mb-3 flex items-center gap-3 px-1">
+        {/* The account block is the link to the profile — the conventional
+            place to look for it, and the only page every role shares. */}
+        <NavLink
+          to="/profile"
+          onClick={() => setMobileOpen(false)}
+          className={({ isActive }) =>
+            clsx(
+              'mb-3 flex items-center gap-3 rounded-lg px-1 py-1.5 transition-colors',
+              isActive ? 'bg-brand-50' : 'hover:bg-slate-100',
+            )
+          }
+        >
           <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-slate-200 text-xs font-semibold text-slate-600">
             {user ? initials(user.email.split('@')[0] ?? user.email) : '?'}
           </div>
@@ -92,7 +103,7 @@ export function AppLayout() {
             <p className="truncate text-sm font-medium text-slate-900">{user?.email}</p>
             <Badge tone="info">{user?.role.toLowerCase()}</Badge>
           </div>
-        </div>
+        </NavLink>
         <button
           type="button"
           onClick={() => void logout()}

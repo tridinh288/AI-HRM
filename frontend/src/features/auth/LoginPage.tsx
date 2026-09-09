@@ -45,6 +45,10 @@ export function LoginPage() {
   const location = useLocation();
   const [serverError, setServerError] = useState<string | null>(null);
 
+  // Set when the app sent the user here on purpose — changing a password
+  // revokes every session, so the redirect needs to say why.
+  const notice = (location.state as { notice?: unknown } | null)?.notice;
+
   const {
     register,
     handleSubmit,
@@ -81,6 +85,15 @@ export function LoginPage() {
           <h1 className="text-xl font-semibold text-slate-900">HRM People Operations</h1>
           <p className="text-sm text-slate-500">Sign in to continue</p>
         </div>
+
+        {typeof notice === 'string' && (
+          <div
+            role="status"
+            className="mb-4 rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-700"
+          >
+            {notice}
+          </div>
+        )}
 
         <Card>
           <form onSubmit={onSubmit} className="space-y-4" noValidate>

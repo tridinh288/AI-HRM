@@ -11,6 +11,7 @@ import { DashboardPage } from './pages/DashboardPage';
 import { DepartmentsPage } from './pages/DepartmentsPage';
 import { EmployeesPage } from './pages/EmployeesPage';
 import { LeavePage } from './pages/LeavePage';
+import { ProfilePage } from './pages/ProfilePage';
 
 /**
  * Query defaults, chosen rather than accepted.
@@ -85,6 +86,9 @@ export function App() {
                 }
               />
               <Route path="assistant" element={<AssistantPage />} />
+              {/* No role gate: every account owns a profile, and the page only
+                  ever reaches its own record. */}
+              <Route path="profile" element={<ProfilePage />} />
             </Route>
 
             <Route path="*" element={<Navigate to="/" replace />} />
