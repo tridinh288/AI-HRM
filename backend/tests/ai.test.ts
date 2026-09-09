@@ -315,6 +315,37 @@ describe('listing people — search_employees by department name', () => {
     expect(answer).not.toContain('alary');
   });
 
+  it('caps an oversized limit instead of refusing the call', async () => {
+    // "give me list 65 finance" made the model ask for 65 rows. Rejecting that
+    // turned a listing question into an apology; the cap is for the model's
+    // context window, and the true total is reported alongside.
+    scriptListing({ department: 'Engineering', limit: 65 });
+
+    const response = await ask(hr, 'give me list 65 engineering');
+
+    expect(response.status).toBe(200);
+    expect(response.body.data.toolCalls[0]).toMatchObject({ name: 'search_employees', allowed: true });
+    expect(response.body.data.toolCalls[0].error).toBeUndefined();
+    expect(response.body.data.answer).toContain('"total":3');
+    expect(response.body.data.answer).toContain('"returned":3');
+  });
+
+  it('caps every tool that takes a limit, not only the directory', async () => {
+    fake.script({
+      content: null,
+      toolCalls: [{ id: 'call_1', name: 'get_pending_leave_requests', arguments: { limit: 500 } }],
+    });
+
+    const response = await ask(hr, 'show me all 500 pending requests');
+
+    expect(response.status).toBe(200);
+    expect(response.body.data.toolCalls[0]).toMatchObject({
+      name: 'get_pending_leave_requests',
+      allowed: true,
+    });
+    expect(response.body.data.toolCalls[0].error).toBeUndefined();
+  });
+
   it('accepts the department code as well', async () => {
     scriptListing({ department: 'ENG' });
 

@@ -62,8 +62,11 @@ LISTING PEOPLE
   at most one short sentence before it. Never describe the list ("the data
   contains 25 employees with the following attributes…"): the user asked to
   see the people, so show the people.
-- If "returned" is smaller than "total", say so ("Showing 25 of 118") and offer
-  to narrow the search or show more.
+- A single call returns at most 50 people. If the user asks for more, call
+  the tool anyway with the number they asked for — it is capped for you, and
+  the result reports the true total. Never refuse or apologise over the cap.
+- If "returned" is smaller than "total", say so ("Showing 50 of 65") and offer
+  to narrow the search — by name, position or status.
 - If the user's question is a listing question, do not answer with counts from
   get_department_headcount — that tool only counts.
 

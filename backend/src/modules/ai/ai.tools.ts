@@ -96,6 +96,24 @@ const monthString = z
   .regex(/^\d{4}-\d{2}$/, 'Use YYYY-MM')
   .describe('A month in YYYY-MM format');
 
+/**
+ * A count the model may suggest but never exceed.
+ *
+ * Out of range is clamped, not rejected. A model that asks for 65 rows means
+ * "as many as you can", and answering that with a validation error turns a
+ * listing question into an apology — which is what "give me list 65 finance"
+ * got. The cap exists for the model's context window, not for the database: a
+ * local model has room for a few thousand tokens of tool result, and the
+ * result reports the true total so the model can say how many were left out.
+ */
+function limitUpTo(max: number, fallback: number) {
+  return z
+    .number()
+    .optional()
+    .transform((value) => Math.min(max, Math.max(1, Math.round(value ?? fallback))))
+    .describe(`How many to return; default ${fallback}, at most ${max} (larger requests are capped)`);
+}
+
 /** Requires an employee record; personal tools are meaningless without one. */
 function selfEmployeeId(context: ToolContext): string {
   if (!context.auth.employeeId) {
@@ -171,7 +189,7 @@ const getMyLeaveRequests = defineTool({
     "The signed-in user's own leave requests, optionally filtered by status (PENDING, APPROVED, REJECTED, CANCELLED).",
   schema: z.object({
     status: z.enum(['PENDING', 'APPROVED', 'REJECTED', 'CANCELLED']).optional(),
-    limit: z.number().int().min(1).max(50).optional(),
+    limit: limitUpTo(50, 10),
   }),
   allowedRoles: ALL_ROLES,
   scope: 'self',
@@ -181,7 +199,7 @@ const getMyLeaveRequests = defineTool({
       employeeId,
       status: args.status,
       page: 1,
-      pageSize: args.limit ?? 10,
+      pageSize: args.limit,
     });
 
     return {
@@ -253,7 +271,7 @@ const getLateEmployees = defineTool({
   schema: z.object({
     from: dateString.optional(),
     to: dateString.optional(),
-    limit: z.number().int().min(1).max(25).optional(),
+    limit: limitUpTo(25, 10),
   }),
   allowedRoles: HR_ROLES,
   scope: 'organisation',
@@ -264,7 +282,7 @@ const getLateEmployees = defineTool({
     return {
       from,
       to,
-      employees: await dashboardRepository.getLateEmployees(from, to, args.limit ?? 10),
+      employees: await dashboardRepository.getLateEmployees(from, to, args.limit),
     };
   },
 });
@@ -274,14 +292,14 @@ const getPendingLeaveRequests = defineTool({
   title: 'Pending leave requests',
   description:
     'Leave requests awaiting approval, with employee name, department, leave type, dates and number of days.',
-  schema: z.object({ limit: z.number().int().min(1).max(50).optional() }),
+  schema: z.object({ limit: limitUpTo(50, 20) }),
   allowedRoles: HR_ROLES,
   scope: 'organisation',
   async handler(args) {
     const { items, total } = await leaveRepository.listLeaveRequests({
       status: 'PENDING',
       page: 1,
-      pageSize: args.limit ?? 20,
+      pageSize: args.limit,
     });
 
     return {
@@ -330,13 +348,7 @@ const searchEmployees = defineTool({
       .describe('Department name or code, e.g. "Engineering" or "ENG"'),
     departmentId: z.string().uuid().optional(),
     employmentStatus: z.enum(['ACTIVE', 'PROBATION', 'ON_LEAVE', 'TERMINATED']).optional(),
-    limit: z
-      .number()
-      .int()
-      .min(1)
-      .max(50)
-      .optional()
-      .describe('How many to return, at most 50; the total is reported separately'),
+    limit: limitUpTo(50, 25),
   }),
   allowedRoles: HR_ROLES,
   scope: 'organisation',
@@ -347,7 +359,7 @@ const searchEmployees = defineTool({
       departmentId: args.departmentId,
       employmentStatus: args.employmentStatus,
       page: 1,
-      pageSize: args.limit ?? 25,
+      pageSize: args.limit,
       sortBy: 'employeeCode',
       sortOrder: 'asc',
     });
@@ -365,6 +377,10 @@ const searchEmployees = defineTool({
     // and turns an unusable answer from a weak one into the list that was
     // asked for. `returned` alongside `total` lets it say "25 of 118" rather
     // than present a page as the whole.
+    //
+    // The table is the only copy of the rows. Sending the same people again as
+    // JSON doubled the size of every listing, and fifty rows in two formats is
+    // more than a local model's context holds together with the prompt.
     const table = [
       '| Code | Name | Department | Position | Status | Hired |',
       '|---|---|---|---|---|---|',
@@ -374,7 +390,7 @@ const searchEmployees = defineTool({
       ),
     ].join('\n');
 
-    return { total, returned: people.length, employees: people, table };
+    return { total, returned: people.length, table };
   },
 });
 
