@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { Pencil, Search, UserPlus } from 'lucide-react';
+import { Pencil, Search, UserPlus, UserX } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
 import {
@@ -20,6 +20,7 @@ import {
   Th,
 } from '../components/ui';
 import { EmployeeForm } from '../features/employees/EmployeeForm';
+import { TerminateForm } from '../features/employees/TerminateForm';
 import { fetchData, fetchPage, getErrorMessage } from '../lib/api';
 import { formatCurrency, formatDate } from '../lib/format';
 import type { Department, Employee } from '../lib/types';
@@ -98,7 +99,9 @@ export function EmployeesPage() {
   });
 
   const [selected, setSelected] = useState<string | null>(null);
-  const [editing, setEditing] = useState(false);
+  // The drawer shows one of three things: the record, the edit form, or the
+  // termination form. One value rather than two booleans that can disagree.
+  const [drawerMode, setDrawerMode] = useState<'view' | 'edit' | 'terminate'>('view');
 
   const detail = useQuery({
     queryKey: ['employees', 'detail', selected],
@@ -108,7 +111,7 @@ export function EmployeesPage() {
 
   const closeDrawer = () => {
     setSelected(null);
-    setEditing(false);
+    setDrawerMode('view');
   };
 
   return (
@@ -258,7 +261,7 @@ export function EmployeesPage() {
                   key={employee.id}
                   onClick={() => {
                     setSelected(employee.id);
-                    setEditing(false);
+                    setDrawerMode('view');
                   }}
                   className="cursor-pointer hover:bg-slate-50"
                 >
@@ -306,7 +309,7 @@ export function EmployeesPage() {
               <LoadingState />
             ) : detail.isError ? (
               <ErrorState message={getErrorMessage(detail.error)} />
-            ) : editing ? (
+            ) : drawerMode === 'edit' ? (
               <>
                 <div className="mb-6">
                   <h2 className="text-lg font-semibold text-slate-900">Edit {detail.data.fullName}</h2>
@@ -318,9 +321,28 @@ export function EmployeesPage() {
                   mode={{ kind: 'edit', employee: detail.data }}
                   onSuccess={(_employee, message) => {
                     setBanner({ tone: 'ok', message });
-                    setEditing(false);
+                    setDrawerMode('view');
                   }}
-                  onCancel={() => setEditing(false)}
+                  onCancel={() => setDrawerMode('view')}
+                />
+              </>
+            ) : drawerMode === 'terminate' ? (
+              <>
+                <div className="mb-6">
+                  <h2 className="text-lg font-semibold text-slate-900">
+                    Cho {detail.data.fullName} nghỉ việc
+                  </h2>
+                  <p className="text-sm text-slate-500">
+                    {detail.data.employeeCode} · {detail.data.email}
+                  </p>
+                </div>
+                <TerminateForm
+                  employee={detail.data}
+                  onDone={(message) => {
+                    setBanner({ tone: 'ok', message });
+                    setDrawerMode('view');
+                  }}
+                  onCancel={() => setDrawerMode('view')}
                 />
               </>
             ) : (
@@ -337,7 +359,7 @@ export function EmployeesPage() {
                     variant="secondary"
                     size="sm"
                     icon={<Pencil className="h-3.5 w-3.5" />}
-                    onClick={() => setEditing(true)}
+                    onClick={() => setDrawerMode('edit')}
                   >
                     Edit
                   </Button>
@@ -367,10 +389,26 @@ export function EmployeesPage() {
                   ))}
                 </dl>
 
+                {/* Offered only while there is something to end. The server
+                    refuses a second termination with 409 either way. */}
+                {detail.data.employmentStatus !== 'TERMINATED' && (
+                  <Button
+                    variant="danger"
+                    icon={<UserX className="h-4 w-4" />}
+                    className="mt-6 w-full"
+                    onClick={() => {
+                      setBanner(null);
+                      setDrawerMode('terminate');
+                    }}
+                  >
+                    Cho nghỉ việc
+                  </Button>
+                )}
+
                 <button
                   type="button"
                   onClick={closeDrawer}
-                  className="mt-6 w-full rounded-lg bg-slate-100 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-200"
+                  className="mt-3 w-full rounded-lg bg-slate-100 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-200"
                 >
                   Close
                 </button>

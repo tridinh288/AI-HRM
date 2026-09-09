@@ -33,9 +33,9 @@ Các quyết định thiết kế, gồm cả những phương án đã bị lo�
 | Module | Làm được gì |
 |---|---|
 | **Xác thực** | Băm mật khẩu Argon2id, JWT access token ngắn hạn, refresh token xoay vòng lưu dạng băm trong database kèm phát hiện tái sử dụng, đổi mật khẩu có thu hồi phiên |
-| **Nhân viên** | Tạo (tài khoản + hồ sơ nhân sự + số dư nghỉ phép trong một transaction), sửa hồ sơ **kể cả lương** ngay trên giao diện, tìm kiếm, lọc, sắp xếp, phân trang, cho nghỉ việc; phân quyền tới cấp trường dữ liệu với lương |
+| **Nhân viên** | Tạo (tài khoản + hồ sơ nhân sự + số dư nghỉ phép trong một transaction), sửa hồ sơ **kể cả lương** ngay trên giao diện, tìm kiếm, lọc, sắp xếp, phân trang, **cho nghỉ việc** (đổi trạng thái + khoá đăng nhập trong một transaction, ghi audit); phân quyền tới cấp trường dữ liệu với lương |
 | **Hồ sơ cá nhân** | Mọi role tự xem hồ sơ của mình, sửa số điện thoại / địa chỉ (để trống là xoá), và đổi mật khẩu — đổi xong mọi phiên bị thu hồi nên phải đăng nhập lại |
-| **Phòng ban & vị trí** | CRUD kèm sĩ số cập nhật trực tiếp, vô hiệu hoá thay vì xoá, khoá ngoại từ chối để mồ côi dữ liệu |
+| **Phòng ban & vị trí** | Tạo / sửa / ngừng dùng ngay trên giao diện, kèm sĩ số cập nhật trực tiếp; ngừng dùng bị từ chối khi còn người, và lời từ chối nói rõ còn bao nhiêu; khoá ngoại từ chối để mồ côi dữ liệu |
 | **Chấm công** | Check in / check out, quy tắc đi muộn và tăng ca lấy từ cấu hình, HR sửa bản ghi thì các trường suy dẫn được tính lại, tổng hợp theo tháng |
 | **Nghỉ phép** | Máy trạng thái xin → duyệt / từ chối / huỷ, đếm ngày làm việc bỏ qua cuối tuần, phát hiện trùng lặp, hạch toán số dư dưới khoá dòng |
 | **Dashboard** | Sĩ số, chấm công hôm nay, đơn chờ duyệt, và bốn biểu đồ dựng từ SQL tổng hợp thuần |
@@ -591,7 +591,8 @@ Phiên bản Node lấy từ `.nvmrc` — một nguồn sự thật cho CI, máy
 │       ├── app/                  layout, chặn route theo role
 │       ├── components/ui.tsx     control dùng chung
 │       ├── features/auth/        ngữ cảnh phiên, đăng nhập
-│       ├── features/employees/   form tạo / sửa nhân viên
+│       ├── features/employees/   form tạo / sửa / cho nghỉ việc
+│       ├── features/organisation/ form phòng ban và vị trí
 │       ├── lib/                  client api, kiểu, định dạng, ghi nhớ hội thoại trợ lý
 │       └── pages/                dashboard · employees · attendance · leave
 │                                 assistant · profile
