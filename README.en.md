@@ -27,7 +27,7 @@ talking about instead:
    balance that exceeds its entitlement even if the application logic is wrong.
 
 Design decisions, including the ones that were rejected, are written up in
-[`docs/DESIGN.md`](docs/DESIGN.md).
+[`docs/DESIGN.md`](docs/DESIGN.en.md).
 
 ---
 
@@ -44,7 +44,7 @@ Design decisions, including the ones that were rejected, are written up in
 | **AI HR Assistant** | Tool-calling against approved backend functions, role-filtered tool list, per-tool authorization, full audit trail, works offline with no API key |
 
 Deliberately **not** built: payroll calculation and recruitment. Reasoning in
-[`docs/DESIGN.md` §1](docs/DESIGN.md).
+[`docs/DESIGN.md` §1](docs/DESIGN.en.md).
 
 ---
 
@@ -126,7 +126,7 @@ about Express.
 ## Database
 
 13 tables. Full ERD and the reasoning behind each constraint is in
-[`docs/DESIGN.md` §3](docs/DESIGN.md).
+[`docs/DESIGN.md` §3](docs/DESIGN.en.md).
 
 ```mermaid
 erDiagram

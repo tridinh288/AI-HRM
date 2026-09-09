@@ -6,8 +6,7 @@ Hệ thống quản lý nhân sự cho một công ty nhỏ, có trợ lý AI tr
 TypeScript từ đầu đến cuối — React + Vite phía trước, Express + PostgreSQL phía sau, Drizzle ORM
 cho schema và migration, Docker Compose để chạy trọn bộ, và 224 test chạy trên database thật.
 
-> Bản tiếng Anh: [README.en.md](README.en.md). Tài liệu thiết kế (tiếng Anh):
-> [`docs/DESIGN.md`](docs/DESIGN.md).
+> Bản tiếng Anh: [README.en.md](README.en.md) và [docs/DESIGN.en.md](docs/DESIGN.en.md).
 
 ---
 
@@ -596,7 +595,7 @@ Phiên bản Node lấy từ `.nvmrc` — một nguồn sự thật cho CI, máy
 │       ├── features/employees/   form tạo / sửa nhân viên
 │       ├── lib/                  client api, kiểu, định dạng, ghi nhớ hội thoại trợ lý
 │       └── pages/                dashboard · employees · attendance · leave · assistant
-├── docs/DESIGN.md                quyết định thiết kế và phương án bị loại (tiếng Anh)
+├── docs/DESIGN.md                quyết định thiết kế và phương án bị loại (bản Anh: DESIGN.en.md)
 ├── README.en.md                  bản tiếng Anh của tài liệu này
 ├── docker-compose.yml
 └── .github/workflows/ci.yml
