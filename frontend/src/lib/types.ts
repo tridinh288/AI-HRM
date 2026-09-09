@@ -164,6 +164,8 @@ export interface LateEmployee {
 
 export interface AiToolCall {
   name: string;
+  /** Human label; absent when the model asked for a tool that does not exist. */
+  title?: string;
   allowed: boolean;
   deniedReason?: string;
   durationMs: number;
@@ -180,5 +182,5 @@ export interface AiAnswer {
 export interface AiCapabilities {
   role: Role;
   provider: string;
-  tools: { name: string; description: string; scope: 'self' | 'organisation' }[];
+  tools: { name: string; title: string; description: string; scope: 'self' | 'organisation' }[];
 }

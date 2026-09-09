@@ -223,9 +223,14 @@ export function AssistantPage() {
                             <ShieldAlert className="mt-0.5 h-3.5 w-3.5 shrink-0 text-rose-600" />
                           )}
                           <span className="min-w-0">
-                            <code className="font-mono text-[11px] text-slate-600">
-                              {call.name}
-                            </code>
+                            {/* The label is for people; the identifier the
+                                model actually used stays one hover away. */}
+                            <span
+                              title={call.name}
+                              className={call.title ? 'text-slate-700' : 'font-mono text-[11px] text-slate-600'}
+                            >
+                              {call.title ?? call.name}
+                            </span>
                             {call.allowed ? (
                               <span className="ml-1 text-slate-400">({call.durationMs}ms)</span>
                             ) : (
@@ -294,10 +299,14 @@ export function AssistantPage() {
                 </div>
                 <ul className="space-y-2">
                   {capabilities.data.tools.map((tool) => (
-                    <li key={tool.name} className="text-xs">
-                      <code className="font-mono text-[11px] text-slate-700">{tool.name}</code>
+                    <li
+                      key={tool.name}
+                      title={`${tool.name} — ${tool.description}`}
+                      className="flex items-center justify-between gap-2 text-xs"
+                    >
+                      <span className="text-slate-700">{tool.title}</span>
                       <Badge tone={tool.scope === 'self' ? 'neutral' : 'warning'}>
-                        {tool.scope}
+                        {tool.scope === 'self' ? 'only you' : 'company-wide'}
                       </Badge>
                     </li>
                   ))}

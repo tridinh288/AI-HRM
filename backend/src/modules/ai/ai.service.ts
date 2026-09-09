@@ -5,7 +5,7 @@ import { AppError } from '../../shared/errors.js';
 import { runAssistant } from './ai.orchestrator.js';
 import { buildSystemPrompt } from './ai.prompt.js';
 import * as repository from './ai.repository.js';
-import { getToolsForRole } from './ai.tools.js';
+import { getTool, getToolsForRole } from './ai.tools.js';
 
 const HISTORY_LIMIT = 10;
 
@@ -41,6 +41,9 @@ export interface AssistantAnswer {
    */
   toolCalls: {
     name: string;
+    /** The tool's human label. Absent when the model asked for a tool that does
+     *  not exist — there is nothing to label, and the raw name is the evidence. */
+    title?: string;
     allowed: boolean;
     deniedReason?: string;
     durationMs: number;
@@ -99,6 +102,7 @@ export async function ask(
     answer: result.answer,
     toolCalls: result.invocations.map((invocation) => ({
       name: invocation.toolName,
+      ...(getTool(invocation.toolName) ? { title: getTool(invocation.toolName)!.title } : {}),
       allowed: invocation.allowed,
       ...(invocation.deniedReason ? { deniedReason: invocation.deniedReason } : {}),
       durationMs: invocation.durationMs,
@@ -135,6 +139,7 @@ export function listCapabilities(auth: AuthContext) {
     provider: env.AI_PROVIDER,
     tools: getToolsForRole(auth.role).map((tool) => ({
       name: tool.name,
+      title: tool.title,
       description: tool.description,
       scope: tool.scope,
     })),

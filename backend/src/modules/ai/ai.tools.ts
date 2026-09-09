@@ -47,7 +47,10 @@ export interface ToolContext {
 export type ToolScope = 'self' | 'organisation';
 
 export interface AiTool {
+  /** The identifier the model calls; stable, snake_case, stored in the audit trail. */
   name: string;
+  /** What a person reads in the UI. The model never sees this. */
+  title: string;
   description: string;
   schema: ZodTypeAny;
   allowedRoles: readonly Role[];
@@ -57,6 +60,7 @@ export interface AiTool {
 
 function defineTool<S extends ZodTypeAny>(definition: {
   name: string;
+  title: string;
   description: string;
   schema: S;
   allowedRoles: readonly Role[];
@@ -65,6 +69,7 @@ function defineTool<S extends ZodTypeAny>(definition: {
 }): AiTool {
   return {
     name: definition.name,
+    title: definition.title,
     description: definition.description,
     schema: definition.schema,
     allowedRoles: definition.allowedRoles,
@@ -105,6 +110,7 @@ function selfEmployeeId(context: ToolContext): string {
 
 const getMyAttendanceSummary = defineTool({
   name: 'get_my_attendance_summary',
+  title: 'My attendance summary',
   description:
     "Attendance summary for the signed-in user over one month: days recorded, days present, days late, total late minutes, total worked minutes and overtime. Defaults to the current month. Only ever returns the caller's own data.",
   // Note the absence of an employeeId parameter. That absence is the security
@@ -134,6 +140,7 @@ const getMyAttendanceSummary = defineTool({
 
 const getMyLeaveBalance = defineTool({
   name: 'get_my_leave_balance',
+  title: 'My leave balance',
   description:
     "The signed-in user's leave balances for a year: entitled, used and remaining days for each leave type. Defaults to the current year.",
   schema: z.object({ year: z.number().int().min(2000).max(2100).optional() }),
@@ -159,6 +166,7 @@ const getMyLeaveBalance = defineTool({
 
 const getMyLeaveRequests = defineTool({
   name: 'get_my_leave_requests',
+  title: 'My leave requests',
   description:
     "The signed-in user's own leave requests, optionally filtered by status (PENDING, APPROVED, REJECTED, CANCELLED).",
   schema: z.object({
@@ -197,6 +205,7 @@ const getMyLeaveRequests = defineTool({
 
 const getHeadcount = defineTool({
   name: 'get_headcount',
+  title: 'Company headcount',
   description:
     'Company-wide headcount: total employees, active employees, new hires this month, number of departments, and today\'s attendance snapshot including how many people are present, late, on leave or have not checked in.',
   schema: z.object({}),
@@ -209,6 +218,7 @@ const getHeadcount = defineTool({
 
 const getDepartmentHeadcount = defineTool({
   name: 'get_department_headcount',
+  title: 'Headcount by department',
   description:
     'Number of active employees in each department, with average tenure in years. Use this for "how many people are in Engineering" style questions. It returns counts only — to list the people themselves, call search_employees with the department name.',
   schema: z.object({}),
@@ -221,6 +231,7 @@ const getDepartmentHeadcount = defineTool({
 
 const getAttendanceStatistics = defineTool({
   name: 'get_attendance_statistics',
+  title: 'Attendance statistics',
   description:
     'Company-wide attendance statistics over a date range: total records, present days, late days, total late minutes, average worked minutes, overtime, and how many distinct employees were late. Defaults to the current month.',
   schema: z.object({ from: dateString.optional(), to: dateString.optional() }),
@@ -236,6 +247,7 @@ const getAttendanceStatistics = defineTool({
 
 const getLateEmployees = defineTool({
   name: 'get_late_employees',
+  title: 'Late arrivals',
   description:
     'Employees with the most late arrivals in a date range, with how many days they were late and total late minutes. Defaults to the last 30 days.',
   schema: z.object({
@@ -259,6 +271,7 @@ const getLateEmployees = defineTool({
 
 const getPendingLeaveRequests = defineTool({
   name: 'get_pending_leave_requests',
+  title: 'Pending leave requests',
   description:
     'Leave requests awaiting approval, with employee name, department, leave type, dates and number of days.',
   schema: z.object({ limit: z.number().int().min(1).max(50).optional() }),
@@ -289,6 +302,7 @@ const getPendingLeaveRequests = defineTool({
 
 const getLeaveStatistics = defineTool({
   name: 'get_leave_statistics',
+  title: 'Leave statistics',
   description:
     'Leave statistics by leave type over a date range: number of requests, approved days, pending and rejected counts. Defaults to the current calendar year.',
   schema: z.object({ from: dateString.optional(), to: dateString.optional() }),
@@ -304,6 +318,7 @@ const getLeaveStatistics = defineTool({
 
 const searchEmployees = defineTool({
   name: 'search_employees',
+  title: 'Employee directory',
   description:
     'List or search employees. Use it whenever the user wants to see people rather than counts: "list the members of the Sales department", "who works in Engineering", "find employee Nguyen", "show the interns". Filter by department NAME or CODE (e.g. "Sales" or "SAL" — never a uuid), by a free-text name/code search, by employment status, or any combination; with no filters it lists everyone. Returns each person\'s name, employee code, department, position, employment status and hire date, plus the total number of matches and how many were returned. Never returns salary or personal contact details.',
   schema: z.object({
