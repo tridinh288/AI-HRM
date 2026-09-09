@@ -1,5 +1,6 @@
 import clsx from 'clsx';
 import { AlertTriangle, Inbox, Loader2 } from 'lucide-react';
+import { forwardRef } from 'react';
 import type { ButtonHTMLAttributes, InputHTMLAttributes, ReactNode, SelectHTMLAttributes } from 'react';
 
 /**
@@ -209,24 +210,38 @@ const controlClass =
   'ring-slate-300 placeholder:text-slate-400 focus:ring-2 focus:ring-inset focus:ring-brand-500 ' +
   'disabled:bg-slate-50 disabled:text-slate-500';
 
-export function Input({ className, ...props }: InputHTMLAttributes<HTMLInputElement>) {
-  return <input {...props} className={clsx(controlClass, className)} />;
-}
+/*
+ * The three controls forward their ref. This is not optional: react-hook-form
+ * attaches to a field through the ref that `register()` returns, and React
+ * drops `ref` from the props of a plain function component. Without the
+ * forward, the form never reaches the DOM element and only learns a value
+ * from onChange — so anything that sets a field without an event, browser
+ * autofill above all, submits as undefined and fails validation with a bare
+ * "Required" while the field visibly holds text.
+ */
 
-export function Select({ className, children, ...props }: SelectHTMLAttributes<HTMLSelectElement>) {
-  return (
-    <select {...props} className={clsx(controlClass, 'pr-8', className)}>
-      {children}
-    </select>
-  );
-}
+export const Input = forwardRef<HTMLInputElement, InputHTMLAttributes<HTMLInputElement>>(
+  function Input({ className, ...props }, ref) {
+    return <input ref={ref} {...props} className={clsx(controlClass, className)} />;
+  },
+);
 
-export function Textarea({
-  className,
-  ...props
-}: React.TextareaHTMLAttributes<HTMLTextAreaElement>) {
-  return <textarea {...props} className={clsx(controlClass, 'min-h-24', className)} />;
-}
+export const Select = forwardRef<HTMLSelectElement, SelectHTMLAttributes<HTMLSelectElement>>(
+  function Select({ className, children, ...props }, ref) {
+    return (
+      <select ref={ref} {...props} className={clsx(controlClass, 'pr-8', className)}>
+        {children}
+      </select>
+    );
+  },
+);
+
+export const Textarea = forwardRef<
+  HTMLTextAreaElement,
+  React.TextareaHTMLAttributes<HTMLTextAreaElement>
+>(function Textarea({ className, ...props }, ref) {
+  return <textarea ref={ref} {...props} className={clsx(controlClass, 'min-h-24', className)} />;
+});
 
 // ---------------------------------------------------------------------------
 // State views
