@@ -67,7 +67,15 @@ export class AnthropicProvider implements LlmProvider {
             input_schema: tool.parameters,
           })),
           max_tokens: request.maxOutputTokens,
-          temperature: request.temperature ?? 0.2,
+          // No `temperature`. Current Claude models (Opus 5, Sonnet 5, Opus
+          // 4.7/4.8) removed the sampling parameters and reject the request
+          // with a 400 if one is sent, so `request.temperature` is dropped
+          // here rather than forwarded. Determinism is not on offer.
+          //
+          // No `thinking` field either, deliberately: omitting it lets each
+          // model apply its own default (Opus 5 thinks adaptively; older
+          // models do not think at all) instead of this adapter sending a
+          // mode that some configured AI_MODEL would reject.
         }),
         signal: controller.signal,
       });
@@ -102,6 +110,13 @@ function toAnthropicMessages(messages: LlmMessage[]): Record<string, unknown>[] 
 
     if (message.role === 'assistant') {
       const content: Record<string, unknown>[] = [];
+      // Reasoning blocks must come first and must be byte-identical to what the
+      // model produced: a thinking model verifies its own prior reasoning before
+      // continuing a tool loop, and rejects the turn if it was altered or
+      // dropped. They are replayed opaquely — this adapter never inspects them.
+      for (const block of message.reasoning ?? []) {
+        content.push(block as Record<string, unknown>);
+      }
       if (message.content) content.push({ type: 'text', text: message.content });
       for (const call of message.toolCalls ?? []) {
         content.push({ type: 'tool_use', id: call.id, name: call.name, input: call.arguments });
@@ -134,18 +149,24 @@ function parseAnthropicResponse(payload: unknown): LlmChatResponse {
 
   const textParts: string[] = [];
   const toolCalls: LlmToolCall[] = [];
+  const reasoning: unknown[] = [];
 
   for (const block of body.content) {
     if (block.type === 'text' && block.text) {
       textParts.push(block.text);
     } else if (block.type === 'tool_use' && block.id && block.name) {
       toolCalls.push({ id: block.id, name: block.name, arguments: block.input ?? {} });
+    } else if (block.type === 'thinking' || block.type === 'redacted_thinking') {
+      // Kept whole and unread. The answer is in the text blocks; this exists
+      // only to be handed back verbatim on the next request of the loop.
+      reasoning.push(block);
     }
   }
 
   return {
     content: textParts.length > 0 ? textParts.join('\n') : null,
     toolCalls,
+    ...(reasoning.length > 0 ? { reasoning } : {}),
     ...(body.usage
       ? {
           usage: {

@@ -72,7 +72,11 @@ export async function runAssistant(input: {
 
   for (let iteration = 1; iteration <= env.AI_MAX_TOOL_ITERATIONS; iteration += 1) {
     const response = await callProvider(() =>
-      provider.chat({ messages, tools, maxOutputTokens: 1024, temperature: 0.2 }),
+      // 4096, not 1024: on a thinking model the reasoning tokens are drawn
+      // from this same budget, and a limit sized for the answer alone truncates
+      // the turn mid-thought. `temperature` is no longer sent — current Claude
+      // models reject it, and the Anthropic adapter drops it anyway.
+      provider.chat({ messages, tools, maxOutputTokens: 4096 }),
     );
 
     if (response.toolCalls.length === 0) {
@@ -88,6 +92,9 @@ export async function runAssistant(input: {
       role: 'assistant',
       content: response.content,
       toolCalls: response.toolCalls,
+      // Carried back verbatim so a thinking model can verify its own prior
+      // reasoning on the next iteration. Undefined for providers without it.
+      reasoning: response.reasoning,
     });
 
     for (const call of response.toolCalls) {
