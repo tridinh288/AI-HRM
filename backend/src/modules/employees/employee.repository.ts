@@ -94,6 +94,13 @@ function buildFilters(query: ListEmployeesQuery): SQL | undefined {
   }
 
   if (query.departmentId) filters.push(eq(employees.departmentId, query.departmentId));
+  if (query.department) {
+    // A name matches as a substring ("resources" finds Human Resources); a
+    // code must match whole, or "HR" would also match anything containing it.
+    filters.push(
+      or(ilike(departments.name, `%${query.department}%`), ilike(departments.code, query.department))!,
+    );
+  }
   if (query.positionId) filters.push(eq(employees.positionId, query.positionId));
   if (query.employmentStatus) {
     filters.push(eq(employees.employmentStatus, query.employmentStatus));
@@ -130,6 +137,9 @@ export async function listEmployees(
       .select({ value: count() })
       .from(employees)
       .innerJoin(users, eq(users.id, employees.userId))
+      // Same joins as the page query: a filter on the department name has to
+      // resolve here too, or the total disagrees with the rows.
+      .leftJoin(departments, eq(departments.id, employees.departmentId))
       .where(where),
   ]);
 

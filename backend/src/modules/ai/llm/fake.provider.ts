@@ -104,12 +104,30 @@ export class FakeLlmProvider implements LlmProvider {
     const aboutBalance = has('balance', 'left', 'remaining', 'còn', 'entitle');
     const aboutAttendance = has('attendance', 'check-in', 'checked in', 'chấm công', 'late', 'muộn');
 
+    // "List the members of the Sales department" / "liệt kê nhân viên phòng
+    // Sales": a listing question, with the department name lifted from the
+    // text when one follows "in", "of", "trong" or "phòng".
+    const wantsList = has(
+      'list', 'liệt kê', 'danh sách', 'members', 'thành viên', 'who works', 'ai làm',
+      'employees in', 'nhân viên trong', 'nhân viên phòng', 'show me the people', 'everyone in',
+    );
+    const departmentHint = question.match(
+      /(?:\bin|\bof|trong|phòng)\s+(?:the\s+)?([\p{L}][\p{L} ]*?)(?:\s+(?:department|team|dept)\b|[?.!,]|$)/u,
+    )?.[1]?.trim();
+
     const candidate =
       // Personal questions first: "how many days of leave do I have left?"
       (aboutLeave && aboutBalance && route('get_my_leave_balance')) ||
       (aboutLeave && mine && has('request', 'đơn') && route('get_my_leave_requests')) ||
       (aboutAttendance && mine && route('get_my_attendance_summary')) ||
       // Organisation-wide questions (only routed if the role has the tool).
+      // Listing comes before headcount: "members of the Sales department"
+      // mentions a department but asks for people, not a number.
+      (wantsList &&
+        route('search_employees', {
+          ...(departmentHint ? { department: departmentHint } : {}),
+          limit: 50,
+        })) ||
       (has('pending', 'chờ duyệt', 'awaiting', 'approval') &&
         route('get_pending_leave_requests')) ||
       (has('late', 'đi muộn') && route('get_late_employees', { from: monthStart, to: today })) ||
@@ -137,7 +155,8 @@ export class FakeLlmProvider implements LlmProvider {
         '- "What is my attendance summary this month?"\n' +
         '- "How many pending leave requests are there?" (HR/Admin)\n' +
         '- "Who was late this month?" (HR/Admin)\n' +
-        '- "How many employees are in each department?" (HR/Admin)\n\n' +
+        '- "How many employees are in each department?" (HR/Admin)\n' +
+        '- "List the members of the Sales department" (HR/Admin)\n\n' +
         'Set `AI_PROVIDER=openai` or `anthropic` with an API key for real answers.',
       toolCalls: [],
     };

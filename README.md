@@ -291,7 +291,7 @@ a generated SQL string cannot.
 | `get_late_employees` | HR, ADMIN | organisation |
 | `get_pending_leave_requests` | HR, ADMIN | organisation |
 | `get_leave_statistics` | HR, ADMIN | organisation |
-| `search_employees` | HR, ADMIN | organisation, salary excluded from the return type |
+| `search_employees` | HR, ADMIN | organisation; lists people by department name/code, name search or status — salary excluded from the return type |
 
 Three properties make this hold:
 

@@ -259,6 +259,73 @@ describe('scope injection — identity comes from the JWT, never from the model'
   });
 });
 
+describe('listing people — search_employees by department name', () => {
+  /**
+   * Scripts only the tool call. With nothing queued for the second turn the
+   * fake provider summarises the tool result verbatim, so the answer text is
+   * the tool's own JSON and can be asserted on directly.
+   */
+  function scriptListing(args: Record<string, unknown>) {
+    fake.script({
+      content: null,
+      toolCalls: [{ id: 'call_1', name: 'search_employees', arguments: args }],
+    });
+  }
+
+  it('lets HR list a department by its name, with a total alongside the rows', async () => {
+    const salesPerson = await createTestUser({
+      email: 'ai-sales@test.local',
+      departmentId: refs.otherDepartmentId,
+      annualLeaveTypeId: refs.annualLeaveTypeId,
+    });
+
+    // The model is never handed a department id; a name is all it can know.
+    scriptListing({ department: 'Sales' });
+
+    const response = await ask(hr, 'List the members of the Sales department');
+
+    expect(response.status).toBe(200);
+    expect(response.body.data.toolCalls[0]).toMatchObject({
+      name: 'search_employees',
+      allowed: true,
+    });
+
+    const answer: string = response.body.data.answer;
+    expect(answer).toContain(salesPerson.employeeCode);
+    expect(answer).not.toContain(employee.employeeCode);
+    expect(answer).not.toContain(colleague.employeeCode);
+    expect(answer).toContain('"total":1');
+    expect(answer).toContain('"returned":1');
+    // The public DTO carries no salary field at all.
+    expect(answer).not.toContain('alary');
+  });
+
+  it('accepts the department code as well', async () => {
+    scriptListing({ department: 'ENG' });
+
+    const response = await ask(hr, 'Who works in ENG?');
+
+    expect(response.status).toBe(200);
+    const answer: string = response.body.data.answer;
+    expect(answer).toContain(employee.employeeCode);
+    expect(answer).toContain(colleague.employeeCode);
+  });
+
+  it('refuses the same listing for an EMPLOYEE, whatever the arguments', async () => {
+    scriptListing({ department: 'Engineering' });
+
+    const response = await ask(employee, 'List everyone in Engineering');
+
+    expect(response.status).toBe(200);
+    expect(response.body.data.toolCalls[0]).toMatchObject({
+      name: 'search_employees',
+      allowed: false,
+    });
+    expect(response.body.data.toolCalls[0].deniedReason).toContain('EMPLOYEE');
+    expect(response.body.data.answer).not.toContain(colleague.employeeCode);
+  });
+});
+
 describe('audit trail', () => {
   it('records refused tool calls, not just successful ones', async () => {
     scriptToolCall('get_pending_leave_requests', {});
