@@ -31,7 +31,21 @@ export interface LlmToolCall {
 export type LlmMessage =
   | { role: 'system'; content: string }
   | { role: 'user'; content: string }
-  | { role: 'assistant'; content: string | null; toolCalls?: LlmToolCall[] }
+  | {
+      role: 'assistant';
+      content: string | null;
+      toolCalls?: LlmToolCall[];
+      /**
+       * Opaque reasoning blocks from the provider that produced this turn.
+       *
+       * The one place a provider's wire format is allowed through this
+       * boundary, and it stays `unknown` precisely so nothing above can read
+       * it. Models with thinking enabled require their own reasoning blocks
+       * echoed back verbatim alongside the tool calls they justify; dropping
+       * them breaks a tool loop. Adapters that have no such concept ignore it.
+       */
+      reasoning?: unknown[];
+    }
   | { role: 'tool'; toolCallId: string; name: string; content: string };
 
 export interface LlmChatRequest {
@@ -45,6 +59,8 @@ export interface LlmChatRequest {
 export interface LlmChatResponse {
   content: string | null;
   toolCalls: LlmToolCall[];
+  /** Provider-native reasoning blocks, to be replayed on the next request. */
+  reasoning?: unknown[];
   usage?: { inputTokens: number; outputTokens: number };
 }
 
