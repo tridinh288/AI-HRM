@@ -1,7 +1,7 @@
 # AI-Powered HRM
 
 Hệ thống quản lý nhân sự cho một công ty nhỏ, có trợ lý AI trả lời câu hỏi về dữ liệu nhân sự
-**mà không bao giờ được cấp quyền truy cập database**.
+
 
 TypeScript từ đầu đến cuối — React + Vite phía trước, Express + PostgreSQL phía sau, Drizzle ORM
 cho schema và migration, Docker Compose để chạy trọn bộ, và 224 test chạy trên database thật.
