@@ -1,9 +1,11 @@
 import { useQuery } from '@tanstack/react-query';
-import { Search } from 'lucide-react';
+import { Pencil, Search, UserPlus } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
 import {
+  Button,
   Card,
+  CardHeader,
   EmptyState,
   ErrorState,
   Field,
@@ -17,6 +19,7 @@ import {
   Td,
   Th,
 } from '../components/ui';
+import { EmployeeForm } from '../features/employees/EmployeeForm';
 import { fetchData, fetchPage, getErrorMessage } from '../lib/api';
 import { formatCurrency, formatDate } from '../lib/format';
 import type { Department, Employee } from '../lib/types';
@@ -39,12 +42,26 @@ function useDebounced<T>(value: T, delayMs = 300): T {
   return debounced;
 }
 
+/**
+ * "EMP0500" → "EMP0501". A suggestion, not a rule: the field stays editable and
+ * the server's unique index is what actually guarantees the code is unused.
+ */
+function nextEmployeeCode(lastCode: string | undefined): string | undefined {
+  const match = lastCode?.match(/^([A-Z-]*?)(\d+)$/);
+  if (!match) return undefined;
+  const [, prefix, digits] = match;
+  return `${prefix}${String(Number(digits) + 1).padStart(digits!.length, '0')}`;
+}
+
 export function EmployeesPage() {
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
   const [departmentId, setDepartmentId] = useState('');
   const [employmentStatus, setEmploymentStatus] = useState('');
   const [sortBy, setSortBy] = useState('employeeCode');
+
+  const [showCreate, setShowCreate] = useState(false);
+  const [banner, setBanner] = useState<{ tone: 'ok' | 'error'; message: string } | null>(null);
 
   const debouncedSearch = useDebounced(search);
 
@@ -72,7 +89,16 @@ export function EmployeesPage() {
     placeholderData: (previous) => previous,
   });
 
+  // Only fetched while the create form is open — it exists to prefill one field.
+  const latest = useQuery({
+    queryKey: ['employees', 'latest-code'],
+    queryFn: () =>
+      fetchPage<Employee>('/employees', { pageSize: 1, sortBy: 'employeeCode', sortOrder: 'desc' }),
+    enabled: showCreate,
+  });
+
   const [selected, setSelected] = useState<string | null>(null);
+  const [editing, setEditing] = useState(false);
 
   const detail = useQuery({
     queryKey: ['employees', 'detail', selected],
@@ -80,9 +106,66 @@ export function EmployeesPage() {
     enabled: Boolean(selected),
   });
 
+  const closeDrawer = () => {
+    setSelected(null);
+    setEditing(false);
+  };
+
   return (
     <>
-      <PageHeader title="Employees" description="Search, filter and review the employee register" />
+      <PageHeader
+        title="Employees"
+        description="Search, filter and review the employee register"
+        action={
+          <Button
+            icon={<UserPlus className="h-4 w-4" />}
+            onClick={() => {
+              setBanner(null);
+              setShowCreate((open) => !open);
+            }}
+          >
+            {showCreate ? 'Close' : 'Add employee'}
+          </Button>
+        }
+      />
+
+      {banner && (
+        <div
+          role="status"
+          className={
+            banner.tone === 'ok'
+              ? 'mb-4 rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-700'
+              : 'mb-4 rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700'
+          }
+        >
+          {banner.message}
+        </div>
+      )}
+
+      {showCreate && (
+        <Card className="mb-6">
+          <CardHeader
+            title="New employee"
+            description="Creates the login, the HR record and this year's leave balances together — all or nothing."
+          />
+          {latest.isPending ? (
+            <LoadingState label="Preparing…" />
+          ) : (
+            <EmployeeForm
+              mode={{
+                kind: 'create',
+                suggestedCode: nextEmployeeCode(latest.data?.items[0]?.employeeCode),
+              }}
+              onSuccess={(employee, message) => {
+                setBanner({ tone: 'ok', message });
+                setShowCreate(false);
+                setSelected(employee.id);
+              }}
+              onCancel={() => setShowCreate(false)}
+            />
+          )}
+        </Card>
+      )}
 
       <Card className="mb-4">
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
@@ -173,7 +256,10 @@ export function EmployeesPage() {
               {employees.data.items.map((employee) => (
                 <tr
                   key={employee.id}
-                  onClick={() => setSelected(employee.id)}
+                  onClick={() => {
+                    setSelected(employee.id);
+                    setEditing(false);
+                  }}
                   className="cursor-pointer hover:bg-slate-50"
                 >
                   <Td>
@@ -214,24 +300,47 @@ export function EmployeesPage() {
 
       {selected && (
         <div className="fixed inset-0 z-40 flex justify-end">
-          <div
-            className="absolute inset-0 bg-slate-900/30"
-            onClick={() => setSelected(null)}
-            aria-hidden
-          />
+          <div className="absolute inset-0 bg-slate-900/30" onClick={closeDrawer} aria-hidden />
           <aside className="relative w-full max-w-md overflow-y-auto bg-white p-6 shadow-xl">
             {detail.isPending ? (
               <LoadingState />
             ) : detail.isError ? (
               <ErrorState message={getErrorMessage(detail.error)} />
-            ) : (
+            ) : editing ? (
               <>
                 <div className="mb-6">
-                  <h2 className="text-lg font-semibold text-slate-900">{detail.data.fullName}</h2>
-                  <p className="text-sm text-slate-500">{detail.data.email}</p>
-                  <div className="mt-2">
-                    <StatusBadge status={detail.data.employmentStatus} />
+                  <h2 className="text-lg font-semibold text-slate-900">Edit {detail.data.fullName}</h2>
+                  <p className="text-sm text-slate-500">
+                    {detail.data.employeeCode} · {detail.data.email}
+                  </p>
+                </div>
+                <EmployeeForm
+                  mode={{ kind: 'edit', employee: detail.data }}
+                  onSuccess={(_employee, message) => {
+                    setBanner({ tone: 'ok', message });
+                    setEditing(false);
+                  }}
+                  onCancel={() => setEditing(false)}
+                />
+              </>
+            ) : (
+              <>
+                <div className="mb-6 flex items-start justify-between gap-4">
+                  <div>
+                    <h2 className="text-lg font-semibold text-slate-900">{detail.data.fullName}</h2>
+                    <p className="text-sm text-slate-500">{detail.data.email}</p>
+                    <div className="mt-2">
+                      <StatusBadge status={detail.data.employmentStatus} />
+                    </div>
                   </div>
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    icon={<Pencil className="h-3.5 w-3.5" />}
+                    onClick={() => setEditing(true)}
+                  >
+                    Edit
+                  </Button>
                 </div>
 
                 <dl className="space-y-3 text-sm">
@@ -260,7 +369,7 @@ export function EmployeesPage() {
 
                 <button
                   type="button"
-                  onClick={() => setSelected(null)}
+                  onClick={closeDrawer}
                   className="mt-6 w-full rounded-lg bg-slate-100 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-200"
                 >
                   Close
