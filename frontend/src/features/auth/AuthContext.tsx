@@ -11,6 +11,7 @@ import {
 } from 'react';
 
 import { api, refreshAccessToken, setAccessToken, setUnauthenticatedHandler } from '../../lib/api';
+import { forgetAssistantConversations } from '../../lib/assistant-storage';
 import type { AuthUser, Role } from '../../lib/types';
 
 /**
@@ -53,6 +54,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Cached data belongs to the user who was signed in. Leaving it would show
     // one person's HR records to the next person to log in on this browser.
     queryClient.clear();
+    forgetAssistantConversations();
   }, [queryClient]);
 
   useEffect(() => {

@@ -52,6 +52,25 @@ export interface AssistantAnswer {
   truncated: boolean;
 }
 
+/** The shape a tool call takes on its way to the client, live or replayed. */
+function describeToolCall(invocation: {
+  toolName: string;
+  allowed: boolean;
+  deniedReason?: string | undefined;
+  durationMs: number;
+  error?: string | undefined;
+}): AssistantAnswer['toolCalls'][number] {
+  const tool = getTool(invocation.toolName);
+  return {
+    name: invocation.toolName,
+    ...(tool ? { title: tool.title } : {}),
+    allowed: invocation.allowed,
+    ...(invocation.deniedReason ? { deniedReason: invocation.deniedReason } : {}),
+    durationMs: invocation.durationMs,
+    ...(invocation.error ? { error: invocation.error } : {}),
+  };
+}
+
 export async function ask(
   input: { question: string; conversationId?: string | undefined },
   auth: AuthContext,
@@ -100,14 +119,7 @@ export async function ask(
   return {
     conversationId,
     answer: result.answer,
-    toolCalls: result.invocations.map((invocation) => ({
-      name: invocation.toolName,
-      ...(getTool(invocation.toolName) ? { title: getTool(invocation.toolName)!.title } : {}),
-      allowed: invocation.allowed,
-      ...(invocation.deniedReason ? { deniedReason: invocation.deniedReason } : {}),
-      durationMs: invocation.durationMs,
-      ...(invocation.error ? { error: invocation.error } : {}),
-    })),
+    toolCalls: result.invocations.map(describeToolCall),
     truncated: result.truncated,
   };
 }
@@ -120,9 +132,42 @@ export async function getConversation(conversationId: string, auth: AuthContext)
   const conversation = await repository.findOwnedConversation(conversationId, auth.userId);
   if (!conversation) throw AppError.notFound('Conversation not found');
 
+  const [messages, invocations] = await Promise.all([
+    repository.listMessages(conversationId, 100),
+    repository.listInvocationsForConversation(conversationId),
+  ]);
+
+  // Invocations are recorded against the *user* message that provoked them
+  // (see `ask`); the UI shows them under the answer. So each assistant message
+  // is handed the calls of the user message just before it, and a reopened
+  // conversation shows the same allowed / refused trail it showed live.
+  const callsByUserMessage = new Map<string, AssistantAnswer['toolCalls']>();
+  for (const invocation of invocations) {
+    if (!invocation.messageId) continue;
+    const calls = callsByUserMessage.get(invocation.messageId) ?? [];
+    calls.push(
+      describeToolCall({
+        toolName: invocation.toolName,
+        allowed: invocation.allowed,
+        deniedReason: invocation.deniedReason ?? undefined,
+        durationMs: invocation.durationMs ?? 0,
+      }),
+    );
+    callsByUserMessage.set(invocation.messageId, calls);
+  }
+
+  let lastUserMessageId: string | null = null;
+
   return {
     ...conversation,
-    messages: await repository.listMessages(conversationId, 100),
+    messages: messages.map((message) => {
+      if (message.role === 'USER') {
+        lastUserMessageId = message.id;
+        return message;
+      }
+      const toolCalls = lastUserMessageId ? (callsByUserMessage.get(lastUserMessageId) ?? []) : [];
+      return { ...message, toolCalls };
+    }),
   };
 }
 
