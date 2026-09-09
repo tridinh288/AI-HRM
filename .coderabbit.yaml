@@ -1,0 +1,38 @@
+# CodeRabbit configuration.
+#
+# Kept in the repository rather than in the CodeRabbit dashboard so that the
+# review policy is versioned, reviewable in a pull request, and identical for
+# anyone who clones or forks this project. CodeRabbit reads this file from the
+# branch under review, so a change here takes effect on the pull request that
+# introduces it.
+language: en-US
+
+reviews:
+  # `chill` is the balanced default: real findings without nitpicking every
+  # formatting preference. `quiet` reports only the most important issues and
+  # `assertive` reports considerably more.
+  profile: chill
+
+  # Leave the review as comments rather than a formal "changes requested".
+  # A blocking review from a bot on a solo project stops a merge over something
+  # a human has already decided is acceptable.
+  request_changes_workflow: false
+
+  high_level_summary: true
+  review_status: true
+  poem: false
+
+  auto_review:
+    enabled: true
+
+    # Without this, CodeRabbit reviews only pull requests targeting the default
+    # branch (`main`) — so every feature PR into `develop` was merged unreviewed,
+    # the same gap the CI workflow had. Anchored so that `develop` does not also
+    # match a branch merely containing the word.
+    base_branches:
+      - '^main$'
+      - '^develop$'
+
+    # Draft pull requests are still being written; reviewing them spends tokens
+    # on code the author already knows is unfinished.
+    drafts: false
