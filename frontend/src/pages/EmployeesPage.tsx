@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { Pencil, Search, UserPlus, UserX } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 
 import {
   Button,
@@ -54,12 +55,31 @@ function nextEmployeeCode(lastCode: string | undefined): string | undefined {
   return `${prefix}${String(Number(digits) + 1).padStart(digits!.length, '0')}`;
 }
 
+const SORT_FIELDS = ['employeeCode', 'lastName', 'hireDate', 'createdAt'];
+const STATUSES = ['ACTIVE', 'PROBATION', 'ON_LEAVE', 'TERMINATED'];
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 export function EmployeesPage() {
+  // The dashboard deep-links here: a department bar filters by department, a
+  // late-arrivals row opens one person. Filters start from the query string
+  // when it carries a valid value; the controls own them from then on.
+  const [params] = useSearchParams();
+  const fromParams = (key: string, allowed: (value: string) => boolean) => {
+    const value = params.get(key);
+    return value && allowed(value) ? value : null;
+  };
+
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
-  const [departmentId, setDepartmentId] = useState('');
-  const [employmentStatus, setEmploymentStatus] = useState('');
-  const [sortBy, setSortBy] = useState('employeeCode');
+  const [departmentId, setDepartmentId] = useState(
+    () => fromParams('departmentId', (v) => UUID.test(v)) ?? '',
+  );
+  const [employmentStatus, setEmploymentStatus] = useState(
+    () => fromParams('employmentStatus', (v) => STATUSES.includes(v)) ?? '',
+  );
+  const [sortBy, setSortBy] = useState(
+    () => fromParams('sortBy', (v) => SORT_FIELDS.includes(v)) ?? 'employeeCode',
+  );
 
   const [showCreate, setShowCreate] = useState(false);
   const [banner, setBanner] = useState<{ tone: 'ok' | 'error'; message: string } | null>(null);
@@ -98,7 +118,9 @@ export function EmployeesPage() {
     enabled: showCreate,
   });
 
-  const [selected, setSelected] = useState<string | null>(null);
+  const [selected, setSelected] = useState<string | null>(
+    () => fromParams('open', (v) => UUID.test(v)),
+  );
   // The drawer shows one of three things: the record, the edit form, or the
   // termination form. One value rather than two booleans that can disagree.
   const [drawerMode, setDrawerMode] = useState<'view' | 'edit' | 'terminate'>('view');
