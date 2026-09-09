@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { LogIn, LogOut } from 'lucide-react';
+import { LogIn, LogOut, Pencil } from 'lucide-react';
 import { useState } from 'react';
 
 import {
@@ -21,6 +21,7 @@ import {
   Td,
   Th,
 } from '../components/ui';
+import { CorrectionForm } from '../features/attendance/CorrectionForm';
 import { api, fetchData, fetchPage, getErrorMessage } from '../lib/api';
 import { useAuth } from '../features/auth/AuthContext';
 import { firstDayOfMonthIso, formatDate, formatMinutes, formatTime, todayIso } from '../lib/format';
@@ -35,6 +36,9 @@ export function AttendancePage() {
   const [to, setTo] = useState(todayIso());
   const [status, setStatus] = useState('');
   const [feedback, setFeedback] = useState<{ tone: 'ok' | 'error'; message: string } | null>(null);
+  // The record HR is correcting, if any. Held whole rather than by id: the
+  // drawer needs its timestamps, and the row is already in hand.
+  const [correcting, setCorrecting] = useState<AttendanceRecord | null>(null);
 
   const today = useQuery({
     queryKey: ['attendance', 'today'],
@@ -258,6 +262,7 @@ export function AttendancePage() {
                 <Th align="right">Late</Th>
                 <Th align="right">Worked</Th>
                 <Th align="right">Overtime</Th>
+                {isHrOrAdmin && <Th align="right">Sửa</Th>}
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -286,6 +291,21 @@ export function AttendancePage() {
                   <Td align="right">
                     {row.overtimeMinutes > 0 ? formatMinutes(row.overtimeMinutes) : '—'}
                   </Td>
+                  {isHrOrAdmin && (
+                    <Td align="right">
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        icon={<Pencil className="h-3.5 w-3.5" />}
+                        onClick={() => {
+                          setFeedback(null);
+                          setCorrecting(row);
+                        }}
+                      >
+                        Sửa
+                      </Button>
+                    </Td>
+                  )}
                 </tr>
               ))}
             </tbody>
@@ -298,6 +318,34 @@ export function AttendancePage() {
             onChange={setPage}
           />
         </>
+      )}
+
+      {correcting && (
+        <div className="fixed inset-0 z-40 flex justify-end">
+          <div
+            className="absolute inset-0 bg-slate-900/30"
+            onClick={() => setCorrecting(null)}
+            aria-hidden
+          />
+          <aside className="relative w-full max-w-md overflow-y-auto bg-white p-6 shadow-xl">
+            <div className="mb-6">
+              <h2 className="text-lg font-semibold text-slate-900">Sửa bản ghi chấm công</h2>
+              <p className="text-sm text-slate-500">
+                {correcting.employeeName} · {correcting.employeeCode} ·{' '}
+                {formatDate(correcting.workDate)}
+              </p>
+            </div>
+
+            <CorrectionForm
+              record={correcting}
+              onDone={(message) => {
+                setFeedback({ tone: 'ok', message });
+                setCorrecting(null);
+              }}
+              onCancel={() => setCorrecting(null)}
+            />
+          </aside>
+        </div>
       )}
     </>
   );
