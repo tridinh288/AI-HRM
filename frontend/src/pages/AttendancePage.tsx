@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { LogIn, LogOut, Pencil } from 'lucide-react';
 import { useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 
 import {
   Badge,
@@ -31,10 +32,19 @@ export function AttendancePage() {
   const { isHrOrAdmin } = useAuth();
   const queryClient = useQueryClient();
 
+  // The dashboard links here with a range and a status in the URL ("late
+  // today"), so the filters start from the query string when it carries them
+  // and from this month otherwise. Read once, at mount: the controls own the
+  // values from then on.
+  const [params] = useSearchParams();
+  const isoDay = (value: string | null) => (value && /^\d{4}-\d{2}-\d{2}$/.test(value) ? value : null);
+  const knownStatus = (value: string | null) =>
+    value && ['PRESENT', 'LATE', 'ON_LEAVE'].includes(value) ? value : '';
+
   const [page, setPage] = useState(1);
-  const [from, setFrom] = useState(firstDayOfMonthIso());
-  const [to, setTo] = useState(todayIso());
-  const [status, setStatus] = useState('');
+  const [from, setFrom] = useState(() => isoDay(params.get('from')) ?? firstDayOfMonthIso());
+  const [to, setTo] = useState(() => isoDay(params.get('to')) ?? todayIso());
+  const [status, setStatus] = useState(() => knownStatus(params.get('status')));
   const [feedback, setFeedback] = useState<{ tone: 'ok' | 'error'; message: string } | null>(null);
   // The record HR is correcting, if any. Held whole rather than by id: the
   // drawer needs its timestamps, and the row is already in hand.

@@ -1,7 +1,8 @@
 import clsx from 'clsx';
-import { AlertTriangle, Inbox, Loader2 } from 'lucide-react';
+import { AlertTriangle, ArrowUpRight, Inbox, Loader2 } from 'lucide-react';
 import { forwardRef } from 'react';
 import type { ButtonHTMLAttributes, InputHTMLAttributes, ReactNode, SelectHTMLAttributes } from 'react';
+import { Link } from 'react-router-dom';
 
 /**
  * A small, deliberate set of building blocks.
@@ -359,12 +360,15 @@ export function StatCard({
   hint,
   tone = 'neutral',
   icon,
+  to,
 }: {
   label: string;
   value: ReactNode;
   hint?: string;
   tone?: BadgeTone;
   icon?: ReactNode;
+  /** Where the number leads. A figure worth showing is usually worth opening. */
+  to?: string;
 }) {
   const accent =
     tone === 'success'
@@ -377,15 +381,41 @@ export function StatCard({
             ? 'text-brand-600'
             : 'text-slate-900';
 
-  return (
-    <Card className="flex items-start justify-between gap-3">
+  const body = (
+    <>
       <div>
         <p className="text-sm font-medium text-slate-500">{label}</p>
         <p className={clsx('mt-1 text-2xl font-semibold tabular', accent)}>{value}</p>
         {hint && <p className="mt-1 text-xs text-slate-400">{hint}</p>}
       </div>
-      {icon && <div className="rounded-lg bg-slate-50 p-2 text-slate-400">{icon}</div>}
-    </Card>
+      {icon && (
+        <div className="relative rounded-lg bg-slate-50 p-2 text-slate-400">
+          {icon}
+          {to && (
+            <ArrowUpRight className="absolute -right-1 -top-1 h-3.5 w-3.5 text-brand-500 opacity-0 transition-opacity group-hover:opacity-100" />
+          )}
+        </div>
+      )}
+    </>
+  );
+
+  if (!to) {
+    return <Card className="flex items-start justify-between gap-3">{body}</Card>;
+  }
+
+  // A link that looks like the card, not a card with a link inside it: the whole
+  // surface is the target, and the hover state says so before the click.
+  return (
+    <Link
+      to={to}
+      className={clsx(
+        'group flex items-start justify-between gap-3 rounded-xl border border-slate-200 bg-white p-5 shadow-sm',
+        'transition-all hover:-translate-y-0.5 hover:border-brand-300 hover:shadow-md',
+        'focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500',
+      )}
+    >
+      {body}
+    </Link>
   );
 }
 
