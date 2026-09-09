@@ -4,20 +4,38 @@
  * A portfolio project with an empty database is a portfolio project nobody can
  * evaluate: every dashboard is zeroes, every chart is blank, and the AI
  * assistant has nothing to answer questions about. This script builds a company
- * that looks real — ~50 people across five departments, three months of
+ * that looks real — 500 people across five departments, three months of
  * attendance, and a spread of leave requests in every state.
  *
- * It is deterministic. The pseudo-random generator below is seeded with a
- * constant, so the same command produces the same company every time: a
- * screenshot in the README still matches the data, and a failing test is
- * reproducible rather than "sometimes".
+ * Two properties are worth knowing before running it.
+ *
+ * **It never deletes anything on its own.** The seed fills an *empty* database.
+ * If accounts already exist it stops and changes nothing, because the data in a
+ * running system is the one thing a convenience script must not be able to
+ * take away. Wiping is a separate, explicit decision: `--reset`.
+ *
+ * **Every account has its own password.** The three demo logins documented in
+ * the README keep the documented password so that the README stays true. The
+ * other 497 get a random one each, written to a git-ignored CSV for whoever
+ * operates the system — never printed to the console, never shown in the app.
+ *
+ * Everything except those passwords is deterministic. The pseudo-random
+ * generator below is seeded with a constant, so the same command produces the
+ * same company every time: a screenshot in the README still matches the data,
+ * and a failing test is reproducible rather than "sometimes". Passwords are the
+ * deliberate exception — deriving them from a constant that lives in a public
+ * repository would make every one of them guessable.
  */
 
-import argon2 from 'argon2';
-import { sql } from 'drizzle-orm';
+import { randomBytes } from 'node:crypto';
+import { mkdir, writeFile } from 'node:fs/promises';
+import path from 'node:path';
+
+import { inArray, sql } from 'drizzle-orm';
 
 import { companyPolicy } from '../config/env.js';
 import { evaluateCheckIn, evaluateCheckOut } from '../modules/attendance/attendance.policy.js';
+import { hashPassword } from '../modules/auth/auth.service.js';
 import { countWorkingDays, isWeekend } from '../shared/calendar.js';
 import { closeDatabase, db } from './client.js';
 import {
@@ -56,16 +74,38 @@ function randomInt(min: number, max: number): number {
   return Math.floor(random() * (max - min + 1)) + min;
 }
 
+/** Picks by weight, so the org chart has a shape rather than five equal slices. */
+function pickWeighted<T>(items: readonly { value: T; weight: number }[]): T {
+  const total = items.reduce((sum, item) => sum + item.weight, 0);
+  let roll = random() * total;
+  for (const item of items) {
+    roll -= item.weight;
+    if (roll < 0) return item.value;
+  }
+  return items[items.length - 1]!.value;
+}
+
 // ---------------------------------------------------------------------------
-// Reference data
+// Size and reference data
 // ---------------------------------------------------------------------------
 
+/** Total accounts, demo logins included. */
+const TOTAL_PEOPLE = 500;
+
+/** Argon2 at production cost takes about a second per hash on a laptop; sixteen
+ *  in flight keeps the run around two minutes instead of eight. */
+const HASH_CONCURRENCY = 16;
+
+/** Where the generated credentials go. Relative to the working directory,
+ *  which is `backend/` when run through npm and `/app` inside the container. */
+const CREDENTIALS_FILE = path.resolve(process.cwd(), 'seed-output', 'accounts.csv');
+
 const DEPARTMENTS = [
-  { code: 'ENG', name: 'Engineering', description: 'Product engineering and platform' },
-  { code: 'HR', name: 'Human Resources', description: 'People operations and recruitment' },
-  { code: 'FIN', name: 'Finance', description: 'Accounting, payroll and reporting' },
-  { code: 'MKT', name: 'Marketing', description: 'Brand, content and growth' },
-  { code: 'SAL', name: 'Sales', description: 'Direct sales and account management' },
+  { code: 'ENG', name: 'Engineering', description: 'Product engineering and platform', weight: 36 },
+  { code: 'SAL', name: 'Sales', description: 'Direct sales and account management', weight: 24 },
+  { code: 'MKT', name: 'Marketing', description: 'Brand, content and growth', weight: 15 },
+  { code: 'FIN', name: 'Finance', description: 'Accounting, payroll and reporting', weight: 15 },
+  { code: 'HR', name: 'Human Resources', description: 'People operations and recruitment', weight: 10 },
 ] as const;
 
 const POSITIONS = [
@@ -80,6 +120,16 @@ const POSITIONS = [
   { title: 'Product Manager', level: 'SENIOR' },
   { title: 'Intern', level: 'INTERN' },
 ] as const;
+
+/** Positions that make sense in each department, so the org chart does not end
+ *  up with accountants in Engineering. */
+const POSITIONS_BY_DEPARTMENT: Record<string, readonly (typeof POSITIONS)[number]['title'][]> = {
+  ENG: ['Backend Developer', 'Frontend Developer', 'QA Engineer', 'Product Manager', 'Intern'],
+  SAL: ['Sales Executive', 'Intern'],
+  MKT: ['Marketing Executive', 'Intern'],
+  FIN: ['Accountant'],
+  HR: ['HR Specialist'],
+};
 
 const LEAVE_TYPES = [
   {
@@ -114,13 +164,14 @@ const LEAVE_TYPES = [
 
 const FAMILY_NAMES = [
   'Nguyen', 'Tran', 'Le', 'Pham', 'Hoang', 'Phan', 'Vu', 'Dang',
-  'Bui', 'Do', 'Ho', 'Ngo', 'Duong', 'Ly', 'Trinh',
+  'Bui', 'Do', 'Ho', 'Ngo', 'Duong', 'Ly', 'Trinh', 'Dinh', 'Mai', 'Vo',
 ] as const;
 
 const GIVEN_NAMES = [
   'An', 'Binh', 'Chau', 'Dung', 'Giang', 'Ha', 'Hieu', 'Hoa', 'Khanh', 'Lan',
   'Linh', 'Mai', 'Minh', 'Nam', 'Nga', 'Ngoc', 'Nhung', 'Phuc', 'Quang', 'Quynh',
   'Son', 'Thanh', 'Thao', 'Thu', 'Trang', 'Trung', 'Tuan', 'Tu', 'Vy', 'Yen',
+  'Bao', 'Dat', 'Hai', 'Hung', 'Huy', 'Kiet', 'Long', 'Nhi', 'Phong', 'Tam',
 ] as const;
 
 const LEAVE_REASONS = [
@@ -159,8 +210,18 @@ function localTimeToInstant(date: string, hour: number, minute: number): Date {
   return new Date(`${date}T${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}:00+07:00`);
 }
 
-async function hash(password: string): Promise<string> {
-  return argon2.hash(password, { type: argon2.argon2id, memoryCost: 65536, timeCost: 3, parallelism: 1 });
+/**
+ * A password someone can type from the CSV: 12 characters from a URL-safe
+ * alphabet, drawn from the OS entropy source rather than the seeded generator
+ * above. Comfortably clears the 10-character minimum the API enforces.
+ */
+function generatePassword(): string {
+  return randomBytes(9).toString('base64url');
+}
+
+/** Quotes a CSV field only when it has to be quoted. */
+function csvField(value: string): string {
+  return /[",\n]/.test(value) ? `"${value.replace(/"/g, '""')}"` : value;
 }
 
 // ---------------------------------------------------------------------------
@@ -169,25 +230,54 @@ async function hash(password: string): Promise<string> {
 
 const DEMO_PASSWORD = 'DemoPassw0rd!';
 
-async function seed(): Promise<void> {
-  console.log('Clearing existing data…');
+interface SeedPerson {
+  email: string;
+  password: string;
+  passwordHash?: string;
+  role: 'ADMIN' | 'HR' | 'EMPLOYEE';
+  firstName: string;
+  lastName: string;
+  departmentCode: string;
+  positionTitle: string;
+  salary: number;
+  /** The demo logins are documented in the README; nobody else is. */
+  isDemo: boolean;
+}
 
-  // TRUNCATE ... CASCADE in one statement: order-independent, and far faster
-  // than deleting table by table in dependency order.
-  await db.execute(sql`
-    truncate table
-      ai_tool_invocations, ai_messages, ai_conversations,
-      audit_logs, refresh_tokens,
-      leave_requests, leave_balances, attendance_records,
-      employees, users, leave_types, positions, departments
-    restart identity cascade
-  `);
+async function seed(): Promise<void> {
+  const reset = process.argv.includes('--reset');
+
+  const [existing] = await db.select({ count: sql<number>`count(*)::int` }).from(users);
+  const existingAccounts = existing?.count ?? 0;
+
+  if (existingAccounts > 0 && !reset) {
+    console.log(
+      `The database already holds ${existingAccounts} user accounts. Nothing was changed.\n` +
+        'The seed only fills an empty database. To discard everything in it and rebuild:\n' +
+        '  npm run db:seed -- --reset',
+    );
+    return;
+  }
+
+  if (reset) {
+    console.log(`--reset: discarding ${existingAccounts} accounts and everything attached to them…`);
+    // TRUNCATE ... CASCADE in one statement: order-independent, and far faster
+    // than deleting table by table in dependency order.
+    await db.execute(sql`
+      truncate table
+        ai_tool_invocations, ai_messages, ai_conversations,
+        audit_logs, refresh_tokens,
+        leave_requests, leave_balances, attendance_records,
+        employees, users, leave_types, positions, departments
+      restart identity cascade
+    `);
+  }
 
   console.log('Inserting departments, positions and leave types…');
 
   const departmentRows = await db
     .insert(departments)
-    .values(DEPARTMENTS.map((d) => ({ ...d })))
+    .values(DEPARTMENTS.map(({ weight: _weight, ...d }) => ({ ...d })))
     .returning({ id: departments.id, code: departments.code });
 
   const positionRows = await db
@@ -208,97 +298,115 @@ async function seed(): Promise<void> {
   const departmentByCode = new Map(departmentRows.map((row) => [row.code, row.id]));
   const positionByTitle = new Map(positionRows.map((row) => [row.title, row.id]));
 
-  console.log('Creating users and employees…');
+  console.log(`Generating ${TOTAL_PEOPLE} people…`);
 
-  const passwordHash = await hash(DEMO_PASSWORD);
   const today = new Date();
   const currentYear = today.getUTCFullYear();
-
-  interface SeedPerson {
-    email: string;
-    role: 'ADMIN' | 'HR' | 'EMPLOYEE';
-    firstName: string;
-    lastName: string;
-    departmentCode: string;
-    positionTitle: string;
-    salary: number;
-  }
 
   // Three demo logins, one per role — the accounts a reviewer will actually use.
   const demoPeople: SeedPerson[] = [
     {
       email: 'admin@hrm.local',
+      password: DEMO_PASSWORD,
       role: 'ADMIN',
       firstName: 'Quang',
       lastName: 'Nguyen',
       departmentCode: 'ENG',
       positionTitle: 'Engineering Manager',
       salary: 65_000_000,
+      isDemo: true,
     },
     {
       email: 'hr@hrm.local',
+      password: DEMO_PASSWORD,
       role: 'HR',
       firstName: 'Mai',
       lastName: 'Tran',
       departmentCode: 'HR',
       positionTitle: 'HR Specialist',
       salary: 28_000_000,
+      isDemo: true,
     },
     {
       email: 'employee@hrm.local',
+      password: DEMO_PASSWORD,
       role: 'EMPLOYEE',
       firstName: 'Linh',
       lastName: 'Pham',
       departmentCode: 'ENG',
       positionTitle: 'Backend Developer',
       salary: 32_000_000,
+      isDemo: true,
     },
   ];
 
   const generated: SeedPerson[] = [];
   const usedEmails = new Set(demoPeople.map((p) => p.email));
 
-  for (let i = 0; i < 47; i += 1) {
+  for (let i = 0; i < TOTAL_PEOPLE - demoPeople.length; i += 1) {
     const lastName = pick(FAMILY_NAMES);
     const firstName = pick(GIVEN_NAMES);
-    const department = pick(DEPARTMENTS);
+    const department = pickWeighted(DEPARTMENTS.map((d) => ({ value: d, weight: d.weight })));
+    const positionTitle = pick(POSITIONS_BY_DEPARTMENT[department.code]!);
 
-    // Position is drawn from the department's plausible roles, so the org chart
-    // does not end up with accountants in Engineering.
-    const positionTitle =
-      department.code === 'ENG'
-        ? pick(['Backend Developer', 'Frontend Developer', 'QA Engineer', 'Product Manager', 'Intern'])
-        : department.code === 'HR'
-          ? 'HR Specialist'
-          : department.code === 'FIN'
-            ? 'Accountant'
-            : department.code === 'MKT'
-              ? 'Marketing Executive'
-              : 'Sales Executive';
-
-    let email = `${firstName}.${lastName}${i}`.toLowerCase() + '@hrm.local';
+    let email = `${firstName}.${lastName}${i + 1}`.toLowerCase() + '@hrm.local';
     while (usedEmails.has(email)) email = `x${email}`;
     usedEmails.add(email);
 
+    // A handful of HR accounts besides the demo one, so "HR" is a team and not
+    // a single person; the ADMIN role stays unique.
+    const role = department.code === 'HR' && random() < 0.3 ? 'HR' : 'EMPLOYEE';
+
     generated.push({
       email,
-      role: 'EMPLOYEE',
+      password: generatePassword(),
+      role,
       firstName,
       lastName,
       departmentCode: department.code,
       positionTitle,
-      salary: randomInt(12, 45) * 1_000_000,
+      salary:
+        positionTitle === 'Intern'
+          ? randomInt(6, 10) * 1_000_000
+          : positionTitle === 'Product Manager'
+            ? randomInt(40, 70) * 1_000_000
+            : randomInt(12, 45) * 1_000_000,
+      isDemo: false,
     });
   }
 
   const allPeople = [...demoPeople, ...generated];
+
+  console.log(`Hashing ${allPeople.length} passwords (argon2id, ${HASH_CONCURRENCY} at a time)…`);
+
+  // The demo password is hashed once and shared; every other person gets their
+  // own hash. Argon2 is deliberately slow, which is why this is the one step
+  // that runs concurrently.
+  const demoHash = await hashPassword(DEMO_PASSWORD);
+  const toHash = allPeople.filter((person) => !person.isDemo);
+  for (const person of demoPeople) person.passwordHash = demoHash;
+
+  for (let i = 0; i < toHash.length; i += HASH_CONCURRENCY) {
+    const batch = toHash.slice(i, i + HASH_CONCURRENCY);
+    await Promise.all(
+      batch.map(async (person) => {
+        person.passwordHash = await hashPassword(person.password);
+      }),
+    );
+    const done = Math.min(i + HASH_CONCURRENCY, toHash.length);
+    if (done % (HASH_CONCURRENCY * 5) === 0 || done === toHash.length) {
+      console.log(`  ${done}/${toHash.length}`);
+    }
+  }
+
+  console.log('Creating users and employees…');
 
   const userRows = await db
     .insert(users)
     .values(
       allPeople.map((person) => ({
         email: person.email,
-        passwordHash,
+        passwordHash: person.passwordHash!,
         role: person.role,
         isActive: true,
       })),
@@ -331,24 +439,28 @@ async function seed(): Promise<void> {
         };
       }),
     )
-    .returning({ id: employees.id, employeeCode: employees.employeeCode });
+    .returning({ id: employees.id, employeeCode: employees.employeeCode, userId: employees.userId });
 
-  // Two former employees, so the TERMINATED path has real data behind it and
-  // "active vs total headcount" is not the same number.
-  await db
-    .update(employees)
-    .set({ employmentStatus: 'TERMINATED', terminatedAt: addDays(today, -45) })
-    .where(sql`${employees.employeeCode} in ('EMP0049', 'EMP0050')`);
+  // About 3% are former employees, so the TERMINATED path has real data behind
+  // it and "active vs total headcount" is not the same number. Demo logins are
+  // never among them — a reviewer's first sign-in must not be a locked account.
+  const demoUserIds = new Set(demoPeople.map((p) => userIdByEmail.get(p.email)!));
+  const terminated = employeeRows.filter((row) => !demoUserIds.has(row.userId) && random() < 0.03);
+  const terminatedEmployeeIds = new Set(terminated.map((row) => row.id));
 
-  await db
-    .update(users)
-    .set({ isActive: false })
-    .where(
-      sql`${users.id} in (select ${employees.userId} from ${employees}
-          where ${employees.employmentStatus} = 'TERMINATED')`,
-    );
+  if (terminated.length > 0) {
+    await db
+      .update(employees)
+      .set({ employmentStatus: 'TERMINATED', terminatedAt: addDays(today, -randomInt(10, 200)) })
+      .where(inArray(employees.id, terminated.map((row) => row.id)));
 
-  console.log(`  ${employeeRows.length} employees created.`);
+    await db
+      .update(users)
+      .set({ isActive: false })
+      .where(inArray(users.id, terminated.map((row) => row.userId)));
+  }
+
+  console.log(`  ${employeeRows.length} employees created (${terminated.length} former).`);
 
   console.log('Creating leave balances…');
 
@@ -367,9 +479,7 @@ async function seed(): Promise<void> {
   console.log('Generating three months of attendance…');
 
   const attendanceValues: (typeof attendanceRecords.$inferInsert)[] = [];
-  const activeEmployees = employeeRows.filter(
-    (row) => row.employeeCode !== 'EMP0049' && row.employeeCode !== 'EMP0050',
-  );
+  const activeEmployees = employeeRows.filter((row) => !terminatedEmployeeIds.has(row.id));
 
   for (let dayOffset = 90; dayOffset >= 0; dayOffset -= 1) {
     const day = addDays(today, -dayOffset);
@@ -430,9 +540,9 @@ async function seed(): Promise<void> {
     }
   }
 
-  // Inserted in chunks: a single INSERT with ~3,000 rows exceeds the parameter
-  // limit of the PostgreSQL wire protocol (65,535 bound parameters).
-  const CHUNK = 500;
+  // Inserted in chunks: the PostgreSQL wire protocol allows 65,535 bound
+  // parameters per statement, and ~30,000 rows of nine columns is well past it.
+  const CHUNK = 2000;
   for (let i = 0; i < attendanceValues.length; i += CHUNK) {
     await db.insert(attendanceRecords).values(attendanceValues.slice(i, i + CHUNK));
   }
@@ -513,12 +623,43 @@ async function seed(): Promise<void> {
     .from(leaveRequests);
   console.log(`  ${leaveCountRows[0]?.count ?? 0} leave requests created.`);
 
-  console.log('\nSeed complete. Demo accounts (all share the same password):');
-  console.table([
-    { role: 'ADMIN', email: 'admin@hrm.local', password: DEMO_PASSWORD },
-    { role: 'HR', email: 'hr@hrm.local', password: DEMO_PASSWORD },
-    { role: 'EMPLOYEE', email: 'employee@hrm.local', password: DEMO_PASSWORD },
-  ]);
+  // Credentials go to a file, not the console: 500 passwords scrolling past in
+  // a terminal are both useless and a habit worth not forming. The file is
+  // git-ignored.
+  const employeeCodeByUserId = new Map(employeeRows.map((row) => [row.userId, row.employeeCode]));
+  const departmentNameByCode = new Map<string, string>(DEPARTMENTS.map((d) => [d.code, d.name]));
+
+  const csv = [
+    'employee_code,email,role,password,full_name,department',
+    ...allPeople.map((person) =>
+      [
+        employeeCodeByUserId.get(userIdByEmail.get(person.email)!)!,
+        person.email,
+        person.role,
+        person.password,
+        `${person.firstName} ${person.lastName}`,
+        departmentNameByCode.get(person.departmentCode)!,
+      ]
+        .map(csvField)
+        .join(','),
+    ),
+  ].join('\n');
+
+  await mkdir(path.dirname(CREDENTIALS_FILE), { recursive: true });
+  await writeFile(CREDENTIALS_FILE, `${csv}\n`, 'utf8');
+
+  console.log(
+    `\nSeed complete: ${allPeople.length} accounts, ${activeEmployees.length} active and ${terminated.length} former.`,
+  );
+  console.log('\nDemo accounts (the three documented in the README):');
+  console.table(
+    demoPeople.map((person) => ({ role: person.role, email: person.email, password: person.password })),
+  );
+  console.log(
+    `Every other account has its own password. All ${allPeople.length} are listed in:\n` +
+      `  ${CREDENTIALS_FILE}\n` +
+      '  (git-ignored — hand it to whoever runs the system; do not commit it)',
+  );
 }
 
 seed()
