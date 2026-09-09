@@ -4,6 +4,7 @@ import {
   Building2,
   CalendarDays,
   ClipboardCheck,
+  KeyRound,
   LayoutDashboard,
   LogOut,
   Menu,
@@ -40,6 +41,8 @@ const NAV_ITEMS: NavItem[] = [
   { to: '/employees', label: 'Employees', icon: Users, roles: ['HR', 'ADMIN'] },
   { to: '/departments', label: 'Departments', icon: Building2, roles: ['HR', 'ADMIN'] },
   { to: '/assistant', label: 'HR Assistant', icon: Bot },
+  // The one entry ADMIN has and HR does not.
+  { to: '/accounts', label: 'Accounts', icon: KeyRound, roles: ['ADMIN'] },
 ];
 
 export function AppLayout() {

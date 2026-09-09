@@ -7,6 +7,7 @@ import type {
   CreateEmployeeInput,
   ListEmployeesQuery,
   TerminateEmployeeInput,
+  UpdateAccountInput,
   UpdateEmployeeInput,
   UpdateOwnProfileInput,
 } from './employee.schema.js';
@@ -50,6 +51,17 @@ export async function terminate(req: Request, res: Response): Promise<void> {
     await service.terminateEmployee(
       req.params.id as string,
       req.body as TerminateEmployeeInput,
+      getAuth(req),
+    ),
+  );
+}
+
+export async function updateAccount(req: Request, res: Response): Promise<void> {
+  sendData(
+    res,
+    await service.updateAccount(
+      req.params.id as string,
+      req.body as UpdateAccountInput,
       getAuth(req),
     ),
   );

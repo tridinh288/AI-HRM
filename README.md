@@ -4,7 +4,7 @@ Hệ thống quản lý nhân sự cho một công ty nhỏ, có trợ lý AI tr
 
 
 TypeScript từ đầu đến cuối — React + Vite phía trước, Express + PostgreSQL phía sau, Drizzle ORM
-cho schema và migration, Docker Compose để chạy trọn bộ, và 229 test chạy trên database thật.
+cho schema và migration, Docker Compose để chạy trọn bộ, và 242 test chạy trên database thật.
 
 
 ---
@@ -34,6 +34,7 @@ Các quyết định thiết kế, gồm cả những phương án đã bị lo�
 |---|---|
 | **Xác thực** | Băm mật khẩu Argon2id, JWT access token ngắn hạn, refresh token xoay vòng lưu dạng băm trong database kèm phát hiện tái sử dụng, đổi mật khẩu có thu hồi phiên |
 | **Nhân viên** | Tạo (tài khoản + hồ sơ nhân sự + số dư nghỉ phép trong một transaction), sửa hồ sơ **kể cả lương** ngay trên giao diện, tìm kiếm, lọc, sắp xếp, phân trang, **cho nghỉ việc** (đổi trạng thái + khoá đăng nhập trong một transaction, ghi audit); phân quyền tới cấp trường dữ liệu với lương |
+| **Tài khoản (ADMIN)** | Đổi role và khoá / mở đăng nhập của tài khoản khác; thu hồi mọi phiên ngay; từ chối tự sửa chính mình, hạ cấp quản trị viên cuối cùng, và mở lại tài khoản của người đã nghỉ việc — quyền duy nhất ADMIN có mà HR không có |
 | **Hồ sơ cá nhân** | Mọi role tự xem hồ sơ của mình, sửa số điện thoại / địa chỉ (để trống là xoá), và đổi mật khẩu — đổi xong mọi phiên bị thu hồi nên phải đăng nhập lại |
 | **Phòng ban & vị trí** | Tạo / sửa / ngừng dùng ngay trên giao diện, kèm sĩ số cập nhật trực tiếp; ngừng dùng bị từ chối khi còn người, và lời từ chối nói rõ còn bao nhiêu; khoá ngoại từ chối để mồ côi dữ liệu |
 | **Chấm công** | Check in / check out, quy tắc đi muộn và tăng ca lấy từ cấu hình, HR sửa bản ghi thì các trường suy dẫn được tính lại, tổng hợp theo tháng |
@@ -205,6 +206,7 @@ Ba role, và phân quyền thực thi ở ba nơi — không nơi nào là front
 | **Xem `base_salary`** | ✅ | ✅ | **chỉ mình** |
 | Tạo / sửa nhân viên (kể cả lương) | ✅ | ✅ (chỉ role EMPLOYEE khi tạo) | ❌ |
 | Tạo tài khoản HR / ADMIN | ✅ | ❌ | ❌ |
+| Đổi role / khoá–mở đăng nhập của tài khoản khác | ✅ | ❌ | ❌ |
 | Duyệt / từ chối nghỉ phép | ✅ | ✅ | ❌ |
 | Sửa chấm công | ✅ | ✅ | ❌ |
 | Dashboard toàn công ty | ✅ | ✅ | ❌ |
@@ -483,6 +485,7 @@ Không secret nào được commit, không cái nào được nướng vào Dock
 | GET | `/employees/me`, `/employees/:id` | đã xác thực (bản ghi của mình, hoặc HR/ADMIN) |
 | PATCH | `/employees/me`, `/employees/:id` | bản thân (ít trường) / HR, ADMIN |
 | POST | `/employees/:id/terminate` | HR, ADMIN |
+| PATCH | `/employees/:id/account` | **ADMIN** — đổi role hoặc khoá/mở đăng nhập; từ chối tự sửa, admin cuối, người đã nghỉ |
 | GET/POST/PATCH | `/departments`, `/positions` | đọc: tất cả · ghi: HR, ADMIN |
 | POST | `/attendance/check-in`, `/attendance/check-out` | đã xác thực |
 | GET | `/attendance`, `/attendance/today`, `/attendance/summary` | theo phạm vi role |
@@ -507,7 +510,7 @@ nhà cung cấp AI không sẵn sàng.
 cd backend && npm test
 ```
 
-**229 test, tất cả chạy trên PostgreSQL thật.** Không mock — tính đúng đắn của dự án này dựa vào
+**242 test, tất cả chạy trên PostgreSQL thật.** Không mock — tính đúng đắn của dự án này dựa vào
 unique index, CHECK constraint, `SELECT … FOR UPDATE` và rollback transaction, những thứ không
 mock nào tái tạo được. Một bộ test mock database không thể cho bạn biết chấm công hai lần có
 thực sự bị chặn hay không.
@@ -521,6 +524,7 @@ thực sự bị chặn hay không.
 | `auth.test.ts` | 19 | Đăng nhập, hết hạn token vs giả mạo, xoay vòng refresh, **phát hiện tái sử dụng**, đổi mật khẩu |
 | `authorization.test.ts` | 30 | Mọi endpoint được bảo vệ gọi bởi sai role; mass-assignment; leo thang đặc quyền |
 | `ai.test.ts` | 31 | Tool lọc theo role, lời gọi bị từ chối, tiêm phạm vi, liệt kê theo phòng ban, kẹp `limit`, replay hội thoại, audit, lỗi provider, hạn mức |
+| `accounts.test.ts` | 13 | Quản trị tài khoản: chỉ ADMIN; đổi role thu hồi phiên; từ chối tự sửa, admin cuối, mở lại người đã nghỉ |
 | `employees.test.ts` | 28 | Rollback transaction, constraint trùng lặp, đầu vào hình dạng SQL injection, lọc theo tên phòng ban, phân trang, nhân viên tự sửa liên hệ |
 | `attendance.test.ts` | 18 | Chấm công hai lần, check-out không có check-in, HR sửa bản ghi |
 | `leave.test.ts` | 20 | Trùng lặp, số dư, transaction duyệt, tự duyệt, huỷ |
@@ -596,7 +600,7 @@ Phiên bản Node lấy từ `.nvmrc` — một nguồn sự thật cho CI, máy
 │       ├── features/organisation/ form phòng ban và vị trí
 │       ├── lib/                  client api, kiểu, định dạng, ghi nhớ hội thoại trợ lý
 │       └── pages/                dashboard · employees · attendance · leave
-│                                 assistant · profile
+│                                 assistant · profile · accounts (ADMIN)
 ├── docs/DESIGN.md                quyết định thiết kế và phương án bị loại
 ├── docker-compose.yml
 └── .github/workflows/ci.yml

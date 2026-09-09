@@ -3,7 +3,7 @@ import { assertCanAccessEmployee } from '../../middlewares/auth.js';
 import { recordAudit } from '../../shared/audit.js';
 import type { AuthContext } from '../../shared/auth-context.js';
 import { AppError } from '../../shared/errors.js';
-import { hashPassword } from '../auth/auth.service.js';
+import { hashPassword, revokeAllSessions } from '../auth/auth.service.js';
 import { createInitialLeaveBalances } from '../leave/leave.repository.js';
 import { toEmployeeDto, type EmployeeDto } from './employee.mapper.js';
 import * as repository from './employee.repository.js';
@@ -11,6 +11,7 @@ import type {
   CreateEmployeeInput,
   ListEmployeesQuery,
   TerminateEmployeeInput,
+  UpdateAccountInput,
   UpdateEmployeeInput,
   UpdateOwnProfileInput,
 } from './employee.schema.js';
@@ -216,4 +217,83 @@ export async function terminateEmployee(
 /** Used by the AI tool layer and the dashboard; no salary, no personal contact data. */
 export async function findEmployeeRowById(id: string) {
   return repository.findEmployeeById(id);
+}
+
+/**
+ * The account behind an employee: its role, and whether it may sign in.
+ *
+ * ADMIN only, and the one operation that separates ADMIN from HR. It is kept
+ * apart from the HR record's PATCH so that no ordinary edit can become a
+ * privilege change, and it refuses three things a live system must refuse:
+ *
+ *   - changing your own account, so an administrator cannot lock themselves
+ *     out or quietly promote themselves through a second route;
+ *   - demoting or disabling the last active administrator, so the system
+ *     cannot end up with nobody able to administer it;
+ *   - re-enabling the login of a terminated employee, which termination
+ *     disabled on purpose.
+ *
+ * Every session of the account is revoked in the same transaction, so the
+ * change lands at the user's next refresh, where the server re-reads role and
+ * active flag. An access token already issued stays valid for the rest of its
+ * fifteen minutes — the revocation window the README documents for JWTs.
+ */
+export async function updateAccount(
+  id: string,
+  input: UpdateAccountInput,
+  actor: AuthContext,
+): Promise<EmployeeDto> {
+  const existing = await repository.findEmployeeById(id);
+  if (!existing) throw AppError.notFound('Employee not found');
+
+  const userId = await repository.findUserIdForEmployee(id);
+  if (!userId) throw AppError.notFound('Employee not found');
+
+  if (userId === actor.userId) {
+    throw AppError.conflict(
+      'CANNOT_MODIFY_OWN_ACCOUNT',
+      'Ask another administrator to change your own role or access',
+    );
+  }
+
+  const stopsBeingAdmin =
+    existing.role === 'ADMIN' &&
+    ((input.role !== undefined && input.role !== 'ADMIN') || input.isActive === false);
+
+  if (stopsBeingAdmin && (await repository.countActiveAdminsOtherThan(userId)) === 0) {
+    throw AppError.conflict(
+      'LAST_ADMIN',
+      'This is the only active administrator; promote someone else first',
+    );
+  }
+
+  if (input.isActive === true && existing.employmentStatus === 'TERMINATED') {
+    throw AppError.conflict(
+      'EMPLOYEE_TERMINATED',
+      'A terminated employee cannot be given access again',
+    );
+  }
+
+  await db.transaction(async (tx) => {
+    await repository.updateUserAccount(userId, input, tx);
+    await revokeAllSessions(userId, tx);
+
+    await recordAudit(
+      {
+        actorUserId: actor.userId,
+        action: 'account.updated',
+        entityType: 'user',
+        entityId: userId,
+        metadata: {
+          employeeId: id,
+          from: { role: existing.role, isActive: existing.isActive },
+          to: { role: input.role ?? existing.role, isActive: input.isActive ?? existing.isActive },
+        },
+      },
+      tx,
+    );
+  });
+
+  const row = await repository.findEmployeeById(id);
+  return toEmployeeDto(row!, actor);
 }

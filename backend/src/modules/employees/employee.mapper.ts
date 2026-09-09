@@ -1,3 +1,4 @@
+import type { Role } from '../../db/schema.js';
 import type { AuthContext } from '../../shared/auth-context.js';
 import type { EmployeeRow } from './employee.repository.js';
 
@@ -24,6 +25,9 @@ export interface EmployeeDto {
   lastName: string;
   fullName: string;
   email: string;
+  /** The account's role. Not sensitive — it is what the sidebar badge shows —
+   *  and the accounts page needs it to offer the right change. */
+  role: Role;
   phone: string | null;
   dateOfBirth: string | null;
   gender: string | null;
@@ -51,6 +55,7 @@ export function toEmployeeDto(row: EmployeeRow, viewer: AuthContext): EmployeeDt
     lastName: row.lastName,
     fullName: `${row.firstName} ${row.lastName}`,
     email: row.email,
+    role: row.role,
     phone: row.phone,
     dateOfBirth: row.dateOfBirth,
     gender: row.gender,

@@ -213,6 +213,7 @@ mà điều đó cần cây quản lý trên nhân viên. Thêm role mà không 
 | Đăng nhập / refresh / đổi mật khẩu của mình | ✅ | ✅ | ✅ |
 | Xem hồ sơ của mình & sửa các trường được phép | ✅ | ✅ | ✅ |
 | Tạo tài khoản HR / ADMIN | ✅ | ❌ | ❌ |
+| Đổi role / khoá–mở đăng nhập của tài khoản khác | ✅ | ❌ | ❌ |
 | Liệt kê / tìm mọi nhân viên | ✅ | ✅ | ❌ |
 | Xem chi tiết bất kỳ nhân viên | ✅ | ✅ | chỉ mình |
 | Tạo / sửa hồ sơ nhân viên (kể cả lương) | ✅ | ✅ (tạo: chỉ role EMPLOYEE) | ❌ |
@@ -452,6 +453,7 @@ Mọi response cùng một phong bì, nên frontend có một đường cho thà
 | GET/PATCH | `/employees/me` | đã xác thực (PATCH: ít trường) |
 | GET/PATCH | `/employees/:id` | HR, ADMIN (GET: hoặc bản thân) |
 | POST | `/employees/:id/terminate` | HR, ADMIN |
+| PATCH | `/employees/:id/account` | **ADMIN** — đổi role hoặc khoá/mở đăng nhập; từ chối tự sửa, admin cuối, người đã nghỉ |
 | GET/POST/PATCH | `/departments`, `/positions` | GET tất cả, ghi HR/ADMIN |
 | POST | `/attendance/check-in`, `/attendance/check-out` | đã xác thực |
 | GET | `/attendance/today`, `/attendance/summary` | đã xác thực (theo phạm vi role) |
@@ -540,7 +542,7 @@ phát hiện ở màn hình đăng nhập và được tái hiện trong jsdom t
 | 7 | Dashboard | xong |
 | 8 | Trợ lý AI | xong |
 | 9 | Frontend | xong |
-| 10 | Test | xong — 229 test |
+| 10 | Test | xong — 242 test |
 | 11 | Docker, CI | xong |
 | 12 | Rà bảo mật, README, chuẩn bị phỏng vấn | xong |
 
@@ -564,3 +566,4 @@ nói một đằng, code một nẻo:
 | Một adapter LLM thật | Hai adapter thật (OpenAI-compatible, Anthropic) có test định dạng request | Bản thứ hai chứng minh abstraction thực sự trừu tượng. |
 | Tool trả JSON, mô hình tự trình bày | Kết quả liệt kê kèm bảng markdown; `limit` được kẹp; tool có `title` cho UI | Học được khi chạy thật với mô hình 3B local — xem §6. |
 | Chat chỉ sống trong state của trang | Hội thoại mở lại được, kèm dấu vết tool call của từng câu trả lời | Server đã lưu mọi thứ từ đầu; chỉ thiếu đường quay lại. |
+| ADMIN chỉ hơn HR ở việc tạo tài khoản HR/ADMIN | Thêm `PATCH /employees/:id/account`: đổi role, khoá/mở đăng nhập, có guard tự-sửa / admin-cuối / người-đã-nghỉ | Không đổi được role sau khi tạo nghĩa là gán nhầm chỉ sửa được bằng SQL; ADMIN cần một lý do tồn tại rõ hơn một ô select lúc tạo. |
