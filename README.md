@@ -335,6 +335,44 @@ cannot make the model attempt one. And it lets the app run with no API key at al
 handful of questions by keyword to *real* tool calls, so a reviewer can clone the repo and
 watch the whole authorization pipeline work for free.
 
+What `fake` cannot do is write prose: it prints the tool's JSON result verbatim under a notice
+saying so. Everything upstream of that — routing, authorization, the audit trail — is the real
+thing.
+
+### Running a real model without an API key
+
+A local [Ollama](https://ollama.com) server speaks the OpenAI Chat Completions shape, so it
+needs no code change — only configuration:
+
+```bash
+ollama pull qwen2.5:3b
+```
+
+```ini
+AI_PROVIDER=openai
+AI_MODEL=qwen2.5:3b
+AI_API_KEY=ollama              # unused by Ollama; the schema only requires it to be non-empty
+AI_BASE_URL=http://localhost:11434/v1
+AI_TIMEOUT_MS=60000            # the first request pays for loading the model into memory
+```
+
+Two things decide whether this is pleasant or unusable:
+
+**Pick a model that supports tool calling.** The assistant is a tool-calling loop; a model
+without that capability will answer from the prompt alone and reach none of your data. The
+`qwen2.5` and `llama3.1` families do.
+
+**Pick one that fits in VRAM.** This matters more than parameter count. A 7B model at roughly
+5&nbsp;GB does not fit a 6&nbsp;GB card once the display takes its share, so Ollama splits the
+layers — and the fraction left on the CPU dominates the runtime. Measured on a 6&nbsp;GB
+RTX 4050, `qwen2.5:7b` loaded at 18% CPU / 82% GPU and took 25 seconds to produce three
+tokens, while `qwen2.5:3b` loaded at 100% GPU and answered a full question, tool call
+included, in about two seconds. Check the split with `ollama ps`; if the `PROCESSOR` column is
+not 100% GPU, choose a smaller model rather than waiting.
+
+Answers from a 3B model are noticeably weaker than from a hosted frontier model — expect
+clumsy phrasing, and check figures it states that no tool returned.
+
 ---
 
 ## Getting started
@@ -413,7 +451,9 @@ process with a readable message rather than surfacing as `undefined` three hours
 | `BREAK_MINUTES` | `60` | Unpaid break deducted from a full day |
 | `COMPANY_TIMEZONE` | `Asia/Ho_Chi_Minh` | Attendance is stored as UTC instants; "late" is a local-time question |
 | `AI_PROVIDER` | `fake` | `openai` \| `anthropic` \| `fake` |
-| `AI_API_KEY` | — | Required unless the provider is `fake` |
+| `AI_API_KEY` | — | Required unless the provider is `fake`; any non-empty value for Ollama |
+| `AI_BASE_URL` | OpenAI | Any OpenAI-compatible host. Ignored when the provider is `anthropic` |
+| `AI_TIMEOUT_MS` | `30000` | Raise for a local model — the first request loads it into memory |
 | `AI_MAX_TOOL_ITERATIONS` | `5` | Caps cost and request duration |
 | `AI_RATE_LIMIT_PER_HOUR` | `30` | Per user, counted in the database |
 
