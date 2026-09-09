@@ -210,7 +210,7 @@ const getHeadcount = defineTool({
 const getDepartmentHeadcount = defineTool({
   name: 'get_department_headcount',
   description:
-    'Number of active employees in each department, with average tenure in years. Use this for "how many people are in Engineering" style questions.',
+    'Number of active employees in each department, with average tenure in years. Use this for "how many people are in Engineering" style questions. It returns counts only — to list the people themselves, call search_employees with the department name.',
   schema: z.object({}),
   allowedRoles: HR_ROLES,
   scope: 'organisation',
@@ -305,27 +305,61 @@ const getLeaveStatistics = defineTool({
 const searchEmployees = defineTool({
   name: 'search_employees',
   description:
-    'Search employees by name or employee code, optionally filtered by department id. Returns name, code, department, position, employment status and hire date. Never returns salary or personal contact details.',
+    'List or search employees. Use it whenever the user wants to see people rather than counts: "list the members of the Sales department", "who works in Engineering", "find employee Nguyen", "show the interns". Filter by department NAME or CODE (e.g. "Sales" or "SAL" — never a uuid), by a free-text name/code search, by employment status, or any combination; with no filters it lists everyone. Returns each person\'s name, employee code, department, position, employment status and hire date, plus the total number of matches and how many were returned. Never returns salary or personal contact details.',
   schema: z.object({
-    query: z.string().max(100).optional(),
+    query: z.string().max(100).optional().describe('Part of a name or an employee code'),
+    department: z
+      .string()
+      .max(80)
+      .optional()
+      .describe('Department name or code, e.g. "Engineering" or "ENG"'),
     departmentId: z.string().uuid().optional(),
-    limit: z.number().int().min(1).max(25).optional(),
+    employmentStatus: z.enum(['ACTIVE', 'PROBATION', 'ON_LEAVE', 'TERMINATED']).optional(),
+    limit: z
+      .number()
+      .int()
+      .min(1)
+      .max(50)
+      .optional()
+      .describe('How many to return, at most 50; the total is reported separately'),
   }),
   allowedRoles: HR_ROLES,
   scope: 'organisation',
   async handler(args) {
     const { items, total } = await listEmployees({
       search: args.query,
+      department: args.department,
       departmentId: args.departmentId,
+      employmentStatus: args.employmentStatus,
       page: 1,
-      pageSize: args.limit ?? 10,
+      pageSize: args.limit ?? 25,
       sortBy: 'employeeCode',
       sortOrder: 'asc',
     });
 
     // The public DTO has no salary, address, phone or date-of-birth field, so
-    // there is nothing here to accidentally leak.
-    return { total, employees: items.map(toEmployeePublicDto) };
+    // there is nothing here to accidentally leak. Its `id` is dropped too: the
+    // model has no tool that takes one, so a uuid per row is a kilobyte of
+    // noise in front of the names.
+    const people = items.map(toEmployeePublicDto).map(({ id: _id, ...person }) => person);
+
+    // Presentation is the model's job in principle. In practice a listing is
+    // the one result a small local model reliably paraphrases ("the list
+    // contains 25 HR specialists…") instead of reproducing, however firmly the
+    // prompt asks. A table it can copy verbatim costs a capable model nothing
+    // and turns an unusable answer from a weak one into the list that was
+    // asked for. `returned` alongside `total` lets it say "25 of 118" rather
+    // than present a page as the whole.
+    const table = [
+      '| Code | Name | Department | Position | Status | Hired |',
+      '|---|---|---|---|---|---|',
+      ...people.map(
+        (p) =>
+          `| ${p.employeeCode} | ${p.fullName} | ${p.department ?? '—'} | ${p.position ?? '—'} | ${p.employmentStatus} | ${p.hireDate} |`,
+      ),
+    ].join('\n');
+
+    return { total, returned: people.length, employees: people, table };
   },
 });
 

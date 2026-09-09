@@ -1,6 +1,8 @@
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { Bot, Send, ShieldAlert, ShieldCheck, User } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
+import Markdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 
 import { Badge, Button, Card, CardHeader, Input, PageHeader, Spinner } from '../components/ui';
 import { useAuth } from '../features/auth/AuthContext';
@@ -23,9 +25,52 @@ const EMPLOYEE_SUGGESTIONS = [
 
 const HR_SUGGESTIONS = [
   'How many employees are in each department?',
+  'List the members of the Sales department',
   'How many pending leave requests are there?',
   'Who was late this month?',
 ];
+
+/**
+ * Renders an assistant reply as markdown.
+ *
+ * The model is told to present people as a table, and a table shown as raw
+ * pipes is not a list of people. GFM is what supplies tables; the element map
+ * keeps the result inside the chat bubble — a full-width table scrolls in its
+ * own box rather than pushing the page sideways. User messages stay plain
+ * text: nothing they type should be interpreted as markup.
+ */
+function AssistantMarkdown({ content }: { content: string }) {
+  return (
+    <Markdown
+      remarkPlugins={[remarkGfm]}
+      components={{
+        p: ({ children }) => <p className="break-words [&:not(:last-child)]:mb-2">{children}</p>,
+        ul: ({ children }) => <ul className="mb-2 list-disc space-y-0.5 pl-5">{children}</ul>,
+        ol: ({ children }) => <ol className="mb-2 list-decimal space-y-0.5 pl-5">{children}</ol>,
+        strong: ({ children }) => <strong className="font-semibold">{children}</strong>,
+        code: ({ children }) => (
+          <code className="rounded bg-slate-200/70 px-1 font-mono text-[12px]">{children}</code>
+        ),
+        table: ({ children }) => (
+          <div className="my-2 overflow-x-auto rounded-lg ring-1 ring-slate-200">
+            <table className="min-w-full text-left text-xs">{children}</table>
+          </div>
+        ),
+        thead: ({ children }) => <thead className="bg-slate-200/60">{children}</thead>,
+        th: ({ children }) => (
+          <th className="whitespace-nowrap px-2.5 py-1.5 font-semibold text-slate-700">{children}</th>
+        ),
+        td: ({ children }) => (
+          <td className="whitespace-nowrap border-t border-slate-200 px-2.5 py-1.5 tabular-nums">
+            {children}
+          </td>
+        ),
+      }}
+    >
+      {content}
+    </Markdown>
+  );
+}
 
 export function AssistantPage() {
   const { isHrOrAdmin } = useAuth();
@@ -153,7 +198,11 @@ export function AssistantPage() {
                     {message.role === 'user' ? 'You' : 'Assistant'}
                   </div>
 
-                  <p className="whitespace-pre-wrap break-words">{message.content}</p>
+                  {message.role === 'assistant' && !message.isError ? (
+                    <AssistantMarkdown content={message.content} />
+                  ) : (
+                    <p className="whitespace-pre-wrap break-words">{message.content}</p>
+                  )}
 
                   {/*
                     Every tool the model asked for is shown, allowed or refused.

@@ -203,6 +203,33 @@ describe('GET /employees', () => {
     }
   });
 
+  it('filters by department name or code, case-insensitively', async () => {
+    // The register filters by id; the AI assistant only ever knows the name.
+    const byName = await api()
+      .get(`${API}/employees`)
+      .query({ department: 'sales' })
+      .set('Authorization', `Bearer ${tokenFor(hr)}`);
+
+    expect(byName.status).toBe(200);
+    expect(byName.body.data.length).toBeGreaterThan(0);
+    for (const item of byName.body.data) {
+      expect(item.department.name).toBe('Sales');
+    }
+    // The total must come from the same filter as the rows.
+    expect(byName.body.meta.total).toBe(byName.body.data.length);
+
+    const byCode = await api()
+      .get(`${API}/employees`)
+      .query({ department: 'eng' })
+      .set('Authorization', `Bearer ${tokenFor(hr)}`);
+
+    expect(byCode.status).toBe(200);
+    expect(byCode.body.data.length).toBeGreaterThan(0);
+    for (const item of byCode.body.data) {
+      expect(item.department.name).toBe('Engineering');
+    }
+  });
+
   it('searches by email', async () => {
     const response = await api()
       .get(`${API}/employees`)

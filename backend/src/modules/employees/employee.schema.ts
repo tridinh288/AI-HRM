@@ -89,6 +89,10 @@ export const updateOwnProfileSchema = z
 export const listEmployeesQuery = paginationQuery.extend({
   search: z.string().trim().max(120).optional(),
   departmentId: z.string().uuid().optional(),
+  /** Department by name or code ("Sales", "SAL"), case-insensitive. The UI
+   *  filters by id; this exists for callers that only know the name — the AI
+   *  assistant chief among them, since no tool hands the model a uuid. */
+  department: z.string().trim().min(1).max(80).optional(),
   positionId: z.string().uuid().optional(),
   employmentStatus: z.enum(employmentStatusEnum.enumValues).optional(),
   sortBy: z.enum(employeeSortFields).default('employeeCode'),

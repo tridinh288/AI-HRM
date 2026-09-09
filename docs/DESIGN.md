@@ -366,7 +366,7 @@ one without going through `authorize()`.
 | `get_late_employees` | HR, ADMIN | org-wide |
 | `get_pending_leave_requests` | HR, ADMIN | org-wide |
 | `get_leave_statistics` | HR, ADMIN | org-wide |
-| `search_employees` | HR, ADMIN | org-wide, **`base_salary` excluded from the tool's return type entirely** |
+| `search_employees` | HR, ADMIN | org-wide; filters by department *name or code* (the model is never given ids), name search, status — **`base_salary` excluded from the tool's return type entirely** |
 
 No tool returns salary, password hashes, or another employee's personal contact details.
 That is a property of the tool return types, so it holds no matter what the model asks for.
