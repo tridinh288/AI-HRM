@@ -22,14 +22,6 @@ const loginSchema = z.object({
 
 type LoginForm = z.infer<typeof loginSchema>;
 
-const DEMO_ACCOUNTS = [
-  { role: 'Admin', email: 'admin@hrm.local' },
-  { role: 'HR', email: 'hr@hrm.local' },
-  { role: 'Employee', email: 'employee@hrm.local' },
-] as const;
-
-const DEMO_PASSWORD = 'DemoPassw0rd!';
-
 /**
  * Only ever redirect to a path inside this application.
  *
@@ -56,7 +48,6 @@ export function LoginPage() {
   const {
     register,
     handleSubmit,
-    setValue,
     formState: { errors, isSubmitting },
   } = useForm<LoginForm>({
     resolver: zodResolver(loginSchema),
@@ -124,30 +115,6 @@ export function LoginPage() {
               Sign in
             </Button>
           </form>
-        </Card>
-
-        <Card className="mt-4 bg-slate-50">
-          <p className="text-xs font-medium text-slate-600">Demo accounts</p>
-          <p className="mt-0.5 text-xs text-slate-500">
-            Seeded by <code className="rounded bg-slate-200 px-1">npm run db:seed</code>. Click one
-            to fill the form.
-          </p>
-          <div className="mt-3 space-y-1.5">
-            {DEMO_ACCOUNTS.map((account) => (
-              <button
-                key={account.email}
-                type="button"
-                onClick={() => {
-                  setValue('email', account.email);
-                  setValue('password', DEMO_PASSWORD);
-                }}
-                className="flex w-full items-center justify-between rounded-lg bg-white px-3 py-2 text-left text-xs ring-1 ring-slate-200 hover:bg-brand-50"
-              >
-                <span className="font-medium text-slate-700">{account.role}</span>
-                <span className="text-slate-500">{account.email}</span>
-              </button>
-            ))}
-          </div>
         </Card>
       </div>
     </div>
