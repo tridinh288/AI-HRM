@@ -4,7 +4,7 @@ Hệ thống quản lý nhân sự cho một công ty nhỏ, có trợ lý AI tr
 **mà không bao giờ được cấp quyền truy cập database**.
 
 TypeScript từ đầu đến cuối — React + Vite phía trước, Express + PostgreSQL phía sau, Drizzle ORM
-cho schema và migration, Docker Compose để chạy trọn bộ, và 224 test chạy trên database thật.
+cho schema và migration, Docker Compose để chạy trọn bộ, và 229 test chạy trên database thật.
 
 
 ---
@@ -34,6 +34,7 @@ Các quyết định thiết kế, gồm cả những phương án đã bị lo�
 |---|---|
 | **Xác thực** | Băm mật khẩu Argon2id, JWT access token ngắn hạn, refresh token xoay vòng lưu dạng băm trong database kèm phát hiện tái sử dụng, đổi mật khẩu có thu hồi phiên |
 | **Nhân viên** | Tạo (tài khoản + hồ sơ nhân sự + số dư nghỉ phép trong một transaction), sửa hồ sơ **kể cả lương** ngay trên giao diện, tìm kiếm, lọc, sắp xếp, phân trang, cho nghỉ việc; phân quyền tới cấp trường dữ liệu với lương |
+| **Hồ sơ cá nhân** | Mọi role tự xem hồ sơ của mình, sửa số điện thoại / địa chỉ (để trống là xoá), và đổi mật khẩu — đổi xong mọi phiên bị thu hồi nên phải đăng nhập lại |
 | **Phòng ban & vị trí** | CRUD kèm sĩ số cập nhật trực tiếp, vô hiệu hoá thay vì xoá, khoá ngoại từ chối để mồ côi dữ liệu |
 | **Chấm công** | Check in / check out, quy tắc đi muộn và tăng ca lấy từ cấu hình, HR sửa bản ghi thì các trường suy dẫn được tính lại, tổng hợp theo tháng |
 | **Nghỉ phép** | Máy trạng thái xin → duyệt / từ chối / huỷ, đếm ngày làm việc bỏ qua cuối tuần, phát hiện trùng lặp, hạch toán số dư dưới khoá dòng |
@@ -506,7 +507,7 @@ nhà cung cấp AI không sẵn sàng.
 cd backend && npm test
 ```
 
-**224 test, tất cả chạy trên PostgreSQL thật.** Không mock — tính đúng đắn của dự án này dựa vào
+**229 test, tất cả chạy trên PostgreSQL thật.** Không mock — tính đúng đắn của dự án này dựa vào
 unique index, CHECK constraint, `SELECT … FOR UPDATE` và rollback transaction, những thứ không
 mock nào tái tạo được. Một bộ test mock database không thể cho bạn biết chấm công hai lần có
 thực sự bị chặn hay không.
@@ -520,7 +521,7 @@ thực sự bị chặn hay không.
 | `auth.test.ts` | 19 | Đăng nhập, hết hạn token vs giả mạo, xoay vòng refresh, **phát hiện tái sử dụng**, đổi mật khẩu |
 | `authorization.test.ts` | 30 | Mọi endpoint được bảo vệ gọi bởi sai role; mass-assignment; leo thang đặc quyền |
 | `ai.test.ts` | 31 | Tool lọc theo role, lời gọi bị từ chối, tiêm phạm vi, liệt kê theo phòng ban, kẹp `limit`, replay hội thoại, audit, lỗi provider, hạn mức |
-| `employees.test.ts` | 23 | Rollback transaction, constraint trùng lặp, đầu vào hình dạng SQL injection, lọc theo tên phòng ban, phân trang |
+| `employees.test.ts` | 28 | Rollback transaction, constraint trùng lặp, đầu vào hình dạng SQL injection, lọc theo tên phòng ban, phân trang, nhân viên tự sửa liên hệ |
 | `attendance.test.ts` | 18 | Chấm công hai lần, check-out không có check-in, HR sửa bản ghi |
 | `leave.test.ts` | 20 | Trùng lặp, số dư, transaction duyệt, tự duyệt, huỷ |
 | `dashboard.test.ts` | 9 | Mọi câu SQL tổng hợp thuần |
@@ -592,7 +593,8 @@ Phiên bản Node lấy từ `.nvmrc` — một nguồn sự thật cho CI, máy
 │       ├── features/auth/        ngữ cảnh phiên, đăng nhập
 │       ├── features/employees/   form tạo / sửa nhân viên
 │       ├── lib/                  client api, kiểu, định dạng, ghi nhớ hội thoại trợ lý
-│       └── pages/                dashboard · employees · attendance · leave · assistant
+│       └── pages/                dashboard · employees · attendance · leave
+│                                 assistant · profile
 ├── docs/DESIGN.md                quyết định thiết kế và phương án bị loại
 ├── docker-compose.yml
 └── .github/workflows/ci.yml
@@ -609,8 +611,9 @@ Nói thẳng, vì một README nói quá tệ hơn một README thừa nhận ra
 - **Không có nghỉ nửa ngày.** Phép đếm theo ngày nguyên.
 - **Rate limit đăng nhập theo IP.** Kẻ tấn công có nhiều địa chỉ thì có nhiều bucket, còn người
   dùng sau một NAT công ty thì dùng chung một. Khoá theo tài khoản sẽ là phần bổ sung.
-- **Không có email.** Đặt lại mật khẩu, thông báo duyệt và email chào mừng chưa làm; HR đặt mật
-  khẩu ban đầu trực tiếp.
+- **Không có email.** Thông báo duyệt và email chào mừng chưa làm. HR đặt mật khẩu ban đầu trực
+  tiếp và nhân viên tự đổi được sau khi đăng nhập, nhưng **quên mật khẩu thì phải nhờ HR đặt
+  lại** — không có luồng tự phục hồi qua email.
 - **Không upload file.** Không ảnh đại diện, không hợp đồng.
 - **Không có cây quản lý.** Đơn đi tới bất kỳ HR nào thay vì theo tuyến báo cáo — đó là lý do
   không có role `MANAGER`. Thêm role mà không có cây thì chỉ là trang trí.

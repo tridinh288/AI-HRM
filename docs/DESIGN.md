@@ -540,7 +540,7 @@ phát hiện ở màn hình đăng nhập và được tái hiện trong jsdom t
 | 7 | Dashboard | xong |
 | 8 | Trợ lý AI | xong |
 | 9 | Frontend | xong |
-| 10 | Test | xong — 224 test |
+| 10 | Test | xong — 229 test |
 | 11 | Docker, CI | xong |
 | 12 | Rà bảo mật, README, chuẩn bị phỏng vấn | xong |
 
