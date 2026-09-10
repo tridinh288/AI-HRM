@@ -99,7 +99,17 @@ services:
       - key: VITE_API_URL
         value: /api/v1
 
+    # Thứ tự có ý nghĩa: rule chạy từ trên xuống, và rule đầu tiên khớp thì
+    # dừng. Đảo hai cái này thì `/*` nuốt luôn mọi lời gọi API và trả về
+    # index.html — frontend nhận HTML ở chỗ nó chờ JSON.
     routes:
       - type: rewrite
         source: /api/*
         destination: https://hrm-api.onrender.com/api/*
+
+      # Router nằm ở phía client, nên URL không tương ứng với file nào trên
+      # đĩa. Không có dòng này thì mở thẳng /employees, hay chỉ cần F5 trên đó,
+      # là 404 — trang chủ vẫn chạy nên lỗi này rất dễ lọt.
+      - type: rewrite
+        source: /*
+        destination: /index.html
