@@ -11,7 +11,7 @@ cho schema và migration, Docker Compose để chạy trọn bộ, và 242 test 
 
 ## Demo
 
-**<https://hrm-web.onrender.com>** — ba tài khoản ở mục [Tài khoản demo](#tài-khoản-demo) đăng
+**<https://ai-hrm-fq7n.onrender.com>** — ba tài khoản ở mục [Tài khoản demo](#tài-khoản-demo) đăng
 nhập được ngay, mỗi tài khoản một góc nhìn khác nhau.
 
 Cứ thử thoải mái: đổi lương, khoá tài khoản, duyệt phép, hỏi trợ lý AI những câu mà role đang
