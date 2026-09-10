@@ -39,6 +39,16 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # Không có secret thì hỏng ở tận bước validate env của Zod, với thông báo
+      # nói về DATABASE_URL rỗng — đúng nhưng không nói phải làm gì.
+      - name: Kiểm tra secret
+        working-directory: .
+        run: |
+          if [ -z "$DATABASE_URL" ]; then
+            echo "::error::Chưa có secret DEMO_DATABASE_URL. Thêm tại Settings → Secrets and variables → Actions, giá trị là External Database URL của Render, kèm ?sslmode=require ở cuối."
+            exit 1
+          fi
+
       - uses: actions/setup-node@v4
         with:
           node-version-file: .nvmrc
