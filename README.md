@@ -11,7 +11,7 @@ cho schema và migration, Docker Compose để chạy trọn bộ, và 245 test 
 
 ## Demo
 
-**<https://ai-hrm-fq7n.onrender.com>** — ba tài khoản ở mục [Tài khoản demo](#tài-khoản-demo) đăng
+**<https://hrm-api-ubry.onrender.com>** — ba tài khoản ở mục [Tài khoản demo](#tài-khoản-demo) đăng
 nhập được ngay, mỗi tài khoản một góc nhìn khác nhau.
 
 Cứ thử thoải mái: đổi lương, khoá tài khoản, duyệt phép, hỏi trợ lý AI những câu mà role đang
@@ -20,12 +20,12 @@ Cứ thử thoải mái: đổi lương, khoá tài khoản, duyệt phép, hỏ
 
 Vài điều nên biết trước khi bấm:
 
-- Chạy trên gói miễn phí của Render nên API ngủ khi không ai dùng. Lần gọi đầu tiên sau một thời
-  gian dài có thể chờ 30–60 giây; sau đó thì bình thường.
+- Chạy trên gói miễn phí của Render nên service ngủ khi không ai dùng. Lần mở đầu tiên sau một
+  thời gian dài có thể chờ 30–60 giây; sau đó thì bình thường.
 - Trợ lý AI dùng mô hình miễn phí và bị siết còn 15 câu mỗi giờ cho mỗi tài khoản.
 - Mọi dữ liệu đều do seed sinh ra. Không có người thật nào trong đó.
 
-Toàn bộ hạ tầng nằm trong [`render.yaml`](render.yaml): một blueprint, ba thành phần.
+Toàn bộ hạ tầng nằm trong [`render.yaml`](render.yaml): một blueprint, hai thành phần — một database và một service phục vụ cả API lẫn giao diện.
 
 ---
 
