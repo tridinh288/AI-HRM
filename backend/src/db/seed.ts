@@ -93,8 +93,16 @@ function pickWeighted<T>(items: readonly { value: T; weight: number }[]): T {
 const TOTAL_PEOPLE = 500;
 
 /** Argon2 at production cost takes about a second per hash on a laptop; sixteen
- *  in flight keeps the run around two minutes instead of eight. */
-const HASH_CONCURRENCY = 16;
+ *  in flight keeps the run around two minutes instead of eight.
+ *
+ *  Tunable because the binding constraint is not always time. Each hash holds
+ *  64 MB while it runs, so sixteen of them want a gigabyte — more than a small
+ *  container has, and it has a server to run as well. `SEED_HASH_CONCURRENCY=4`
+ *  trades a longer run for one that finishes. */
+const HASH_CONCURRENCY = Math.min(
+  Math.max(Math.trunc(Number(process.env.SEED_HASH_CONCURRENCY)) || 16, 1),
+  64,
+);
 
 /** Where the generated credentials go. Relative to the working directory,
  *  which is `backend/` when run through npm and `/app` inside the container. */
