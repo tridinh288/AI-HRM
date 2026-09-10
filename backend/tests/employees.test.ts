@@ -320,6 +320,69 @@ describe('POST /employees/:id/terminate', () => {
     expect(second.status).toBe(409);
     expect(second.body.error.code).toBe('EMPLOYEE_ALREADY_TERMINATED');
   });
+
+  it('refuses to let the caller terminate their own record', async () => {
+    // Termination disables the login behind the record, so doing it to
+    // yourself is locking yourself out — through a different door than
+    // PATCH /account, and it has to be shut too.
+    const response = await api()
+      .post(`${API}/employees/${hr.employeeId}/terminate`)
+      .set('Authorization', `Bearer ${tokenFor(hr)}`)
+      .send({ reason: 'Leaving' });
+
+    expect(response.status).toBe(409);
+    expect(response.body.error.code).toBe('CANNOT_TERMINATE_SELF');
+
+    const [row] = await db
+      .select({ status: employees.employmentStatus })
+      .from(employees)
+      .where(eq(employees.id, hr.employeeId));
+    expect(row?.status).not.toBe('TERMINATED');
+  });
+
+  it('refuses to terminate the last active administrator', async () => {
+    // Not a rule about employment — a rule about the system still having
+    // somebody able to administer it afterwards.
+    const admin = await createTestUser({
+      email: 'only-admin@test.local',
+      role: 'ADMIN',
+      departmentId: refs.departmentId,
+    });
+
+    const response = await api()
+      .post(`${API}/employees/${admin.employeeId}/terminate`)
+      .set('Authorization', `Bearer ${tokenFor(hr)}`)
+      .send({});
+
+    expect(response.status).toBe(409);
+    expect(response.body.error.code).toBe('LAST_ADMIN');
+
+    const login = await api()
+      .post(`${API}/auth/login`)
+      .send({ email: 'only-admin@test.local', password: TEST_PASSWORD });
+    expect(login.status).toBe(200);
+  });
+
+  it('allows terminating an administrator while another remains', async () => {
+    const leaving = await createTestUser({
+      email: 'admin-leaving@test.local',
+      role: 'ADMIN',
+      departmentId: refs.departmentId,
+    });
+    await createTestUser({
+      email: 'admin-staying@test.local',
+      role: 'ADMIN',
+      departmentId: refs.departmentId,
+    });
+
+    const response = await api()
+      .post(`${API}/employees/${leaving.employeeId}/terminate`)
+      .set('Authorization', `Bearer ${tokenFor(hr)}`)
+      .send({});
+
+    expect(response.status).toBe(200);
+    expect(response.body.data.employmentStatus).toBe('TERMINATED');
+  });
 });
 
 describe('departments', () => {

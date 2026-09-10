@@ -4,7 +4,7 @@ Hệ thống quản lý nhân sự cho một công ty nhỏ, có trợ lý AI tr
 
 
 TypeScript từ đầu đến cuối — React + Vite phía trước, Express + PostgreSQL phía sau, Drizzle ORM
-cho schema và migration, Docker Compose để chạy trọn bộ, và 242 test chạy trên database thật.
+cho schema và migration, Docker Compose để chạy trọn bộ, và 245 test chạy trên database thật.
 
 
 ---
@@ -480,7 +480,7 @@ Không gì trong app tiết lộ chúng — trang đăng nhập chỉ là trang 
 | HR | `hr@hrm.local` | Mọi nhân viên, duyệt phép, dashboard, mọi tool AI |
 | Employee | `employee@hrm.local` | Chỉ bản ghi của mình, ba tool AI cá nhân |
 
-Seed dựng một công ty 500 người trong năm phòng ban — 485 đang làm và 15 đã nghỉ — với ba tháng
+Seed dựng một công ty 500 người trong năm phòng ban cộng một phòng Executive chỉ có giám đốc — 485 đang làm và 15 đã nghỉ — với ba tháng
 chấm công (~30.000 bản ghi, gồm cả đi muộn và quên check-out như thật) và ~640 đơn nghỉ phép ở
 mọi trạng thái. Mọi thứ trừ mật khẩu là tất định, nên cùng một lệnh luôn cho ra cùng một công ty.
 
@@ -563,7 +563,7 @@ nhà cung cấp AI không sẵn sàng.
 cd backend && npm test
 ```
 
-**242 test, tất cả chạy trên PostgreSQL thật.** Không mock — tính đúng đắn của dự án này dựa vào
+**245 test, tất cả chạy trên PostgreSQL thật.** Không mock — tính đúng đắn của dự án này dựa vào
 unique index, CHECK constraint, `SELECT … FOR UPDATE` và rollback transaction, những thứ không
 mock nào tái tạo được. Một bộ test mock database không thể cho bạn biết chấm công hai lần có
 thực sự bị chặn hay không.
@@ -578,7 +578,7 @@ thực sự bị chặn hay không.
 | `authorization.test.ts` | 30 | Mọi endpoint được bảo vệ gọi bởi sai role; mass-assignment; leo thang đặc quyền |
 | `ai.test.ts` | 31 | Tool lọc theo role, lời gọi bị từ chối, tiêm phạm vi, liệt kê theo phòng ban, kẹp `limit`, replay hội thoại, audit, lỗi provider, hạn mức |
 | `accounts.test.ts` | 13 | Quản trị tài khoản: chỉ ADMIN; đổi role thu hồi phiên; từ chối tự sửa, admin cuối, mở lại người đã nghỉ |
-| `employees.test.ts` | 28 | Rollback transaction, constraint trùng lặp, đầu vào hình dạng SQL injection, lọc theo tên phòng ban, phân trang, nhân viên tự sửa liên hệ |
+| `employees.test.ts` | 31 | Rollback transaction, constraint trùng lặp, đầu vào hình dạng SQL injection, lọc theo tên phòng ban, phân trang, nhân viên tự sửa liên hệ, từ chối tự cho mình nghỉ việc và cho quản trị viên cuối cùng nghỉ |
 | `attendance.test.ts` | 18 | Chấm công hai lần, check-out không có check-in, HR sửa bản ghi |
 | `leave.test.ts` | 20 | Trùng lặp, số dư, transaction duyệt, tự duyệt, huỷ |
 | `dashboard.test.ts` | 9 | Mọi câu SQL tổng hợp thuần |

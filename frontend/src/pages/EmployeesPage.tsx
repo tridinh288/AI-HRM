@@ -20,6 +20,7 @@ import {
   Td,
   Th,
 } from '../components/ui';
+import { useAuth } from '../features/auth/AuthContext';
 import { EmployeeForm } from '../features/employees/EmployeeForm';
 import { TerminateForm } from '../features/employees/TerminateForm';
 import { fetchData, fetchPage, getErrorMessage } from '../lib/api';
@@ -60,6 +61,7 @@ const STATUSES = ['ACTIVE', 'PROBATION', 'ON_LEAVE', 'TERMINATED'];
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export function EmployeesPage() {
+  const { user } = useAuth();
   // The dashboard deep-links here: a department bar filters by department, a
   // late-arrivals row opens one person. Filters start from the query string
   // when it carries a valid value; the controls own them from then on.
@@ -411,21 +413,28 @@ export function EmployeesPage() {
                   ))}
                 </dl>
 
-                {/* Offered only while there is something to end. The server
-                    refuses a second termination with 409 either way. */}
-                {detail.data.employmentStatus !== 'TERMINATED' && (
-                  <Button
-                    variant="danger"
-                    icon={<UserX className="h-4 w-4" />}
-                    className="mt-6 w-full"
-                    onClick={() => {
-                      setBanner(null);
-                      setDrawerMode('terminate');
-                    }}
-                  >
-                    Cho nghỉ việc
-                  </Button>
-                )}
+                {/* Offered only while there is something to end, and never on
+                    your own record: terminating disables the login behind it,
+                    so doing it to yourself is locking yourself out. The server
+                    refuses both cases with 409 regardless of what is rendered. */}
+                {detail.data.employmentStatus !== 'TERMINATED' &&
+                  (detail.data.id === user?.employeeId ? (
+                    <p className="mt-6 rounded-lg bg-slate-50 px-3 py-2 text-sm text-slate-500">
+                      Đây là hồ sơ của bạn — việc cho nghỉ phải do người khác thực hiện.
+                    </p>
+                  ) : (
+                    <Button
+                      variant="danger"
+                      icon={<UserX className="h-4 w-4" />}
+                      className="mt-6 w-full"
+                      onClick={() => {
+                        setBanner(null);
+                        setDrawerMode('terminate');
+                      }}
+                    >
+                      Cho nghỉ việc
+                    </Button>
+                  ))}
 
                 <button
                   type="button"

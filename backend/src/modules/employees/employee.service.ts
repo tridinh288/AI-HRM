@@ -187,6 +187,30 @@ export async function terminateEmployee(
     throw AppError.conflict('EMPLOYEE_ALREADY_TERMINATED', 'This employee is already terminated');
   }
 
+  // Terminating a record disables the login behind it, so terminating your own
+  // is locking yourself out — the same mistake `updateAccount` refuses, arriving
+  // through a different door. Ending someone's employment is a decision about
+  // them, made by somebody else.
+  if (actor.employeeId === id) {
+    throw AppError.conflict(
+      'CANNOT_TERMINATE_SELF',
+      'You cannot end your own employment. Ask another administrator to do it.',
+    );
+  }
+
+  // And the same last-administrator rule: a system nobody can administer is a
+  // system that cannot undo this.
+  const targetUserId = await repository.findUserIdForEmployee(id);
+  if (targetUserId && existing.role === 'ADMIN') {
+    const otherAdmins = await repository.countActiveAdminsOtherThan(targetUserId);
+    if (otherAdmins === 0) {
+      throw AppError.conflict(
+        'LAST_ADMIN',
+        'This is the last active administrator. Promote someone else first.',
+      );
+    }
+  }
+
   const terminatedAt = input.terminationDate ? new Date(input.terminationDate) : new Date();
 
   await db.transaction(async (tx) => {

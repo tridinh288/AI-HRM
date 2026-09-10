@@ -4,8 +4,9 @@
  * A portfolio project with an empty database is a portfolio project nobody can
  * evaluate: every dashboard is zeroes, every chart is blank, and the AI
  * assistant has nothing to answer questions about. This script builds a company
- * that looks real — 500 people across five departments, three months of
- * attendance, and a spread of leave requests in every state.
+ * that looks real — 500 people across five staffed departments plus a one-person
+ * Executive office, three months of attendance, and a spread of leave requests
+ * in every state.
  *
  * Two properties are worth knowing before running it.
  *
@@ -114,7 +115,15 @@ const DEPARTMENTS = [
   { code: 'MKT', name: 'Marketing', description: 'Brand, content and growth', weight: 15 },
   { code: 'FIN', name: 'Finance', description: 'Accounting, payroll and reporting', weight: 15 },
   { code: 'HR', name: 'Human Resources', description: 'People operations and recruitment', weight: 10 },
+  // Weight 0 — nobody lands here at random. It exists for the one account that
+  // administers the system: "Engineering / Engineering Manager" was a strange
+  // place to find the person who can change everyone else's role.
+  { code: 'EXE', name: 'Executive', description: 'Company leadership', weight: 0 },
 ] as const;
+
+/** The departments ordinary staff are drawn from. Executive is deliberately not
+ *  one of them — a company does not fill its leadership by lottery. */
+const STAFFED_DEPARTMENTS = DEPARTMENTS.filter((department) => department.weight > 0);
 
 const POSITIONS = [
   { title: 'Backend Developer', level: 'MID' },
@@ -126,6 +135,7 @@ const POSITIONS = [
   { title: 'Marketing Executive', level: 'JUNIOR' },
   { title: 'Sales Executive', level: 'JUNIOR' },
   { title: 'Product Manager', level: 'SENIOR' },
+  { title: 'Director', level: 'MANAGER' },
   { title: 'Intern', level: 'INTERN' },
 ] as const;
 
@@ -137,6 +147,7 @@ const POSITIONS_BY_DEPARTMENT: Record<string, readonly (typeof POSITIONS)[number
   MKT: ['Marketing Executive', 'Intern'],
   FIN: ['Accountant'],
   HR: ['HR Specialist'],
+  EXE: ['Director'],
 };
 
 const LEAVE_TYPES = [
@@ -319,8 +330,8 @@ async function seed(): Promise<void> {
       role: 'ADMIN',
       firstName: 'Quang',
       lastName: 'Nguyen',
-      departmentCode: 'ENG',
-      positionTitle: 'Engineering Manager',
+      departmentCode: 'EXE',
+      positionTitle: 'Director',
       salary: 65_000_000,
       isDemo: true,
     },
@@ -354,7 +365,9 @@ async function seed(): Promise<void> {
   for (let i = 0; i < TOTAL_PEOPLE - demoPeople.length; i += 1) {
     const lastName = pick(FAMILY_NAMES);
     const firstName = pick(GIVEN_NAMES);
-    const department = pickWeighted(DEPARTMENTS.map((d) => ({ value: d, weight: d.weight })));
+    const department = pickWeighted(
+      STAFFED_DEPARTMENTS.map((d) => ({ value: d, weight: d.weight })),
+    );
     const positionTitle = pick(POSITIONS_BY_DEPARTMENT[department.code]!);
 
     let email = `${firstName}.${lastName}${i + 1}`.toLowerCase() + '@hrm.local';
