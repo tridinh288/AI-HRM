@@ -452,9 +452,11 @@ phụ thuộc vào URL mà Render sinh ra sau khi tạo:
    nhà cung cấp không cần đụng vào code.
 
 Database thì không phải làm gì cả: `render.yaml` cho container chạy
-[`docker-start.sh`](backend/docker-start.sh), script này migrate rồi seed trước khi khởi động
-server. Lần deploy đầu tiên là đã có sẵn một công ty 500 người. Những lần khởi động sau, seed
-nhìn thấy database đã có tài khoản nên in một dòng rồi bỏ qua — nó không bao giờ tự xoá gì.
+[`docker-start.sh`](backend/docker-start.sh), script này migrate, bật seed chạy nền, rồi khởi
+động server. Vài phút đầu sau lần deploy đầu tiên, web đã lên nhưng dữ liệu còn đang được đổ vào
+— seed chạy nền chứ không chặn server, vì Render chỉ chờ service mở cổng trong một khoảng ngắn
+rồi coi như deploy hỏng, mà hash 500 mật khẩu argon2id thì lâu hơn thế. Những lần khởi động sau,
+seed nhìn thấy database đã có tài khoản nên in một dòng rồi bỏ qua — nó không bao giờ tự xoá gì.
 
 Tạo tay từng service thay vì dùng Blueprint cũng được; khi đó nhớ điền ô **Docker Command** của
 `hrm-api` là `./docker-start.sh`. Bỏ trống thì container chạy lệnh mặc định trong Dockerfile,

@@ -81,6 +81,11 @@ services:
       - key: LOG_LEVEL
         value: info
 
+      # Bốn, không phải mười sáu: mỗi hash argon2id giữ 64 MB, và instance free
+      # chỉ có 512 MB — vốn đã phải chia cho cả server đang chạy song song.
+      - key: SEED_HASH_CONCURRENCY
+        value: 4
+
   - type: web
     name: hrm-web
     runtime: static
