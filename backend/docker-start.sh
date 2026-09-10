@@ -11,7 +11,16 @@
 set -e
 
 node dist/db/migrate.js
-node dist/db/seed.js
+
+# Seed chạy nền, không chặn server.
+#
+# Nền tảng hosting chờ service mở cổng trong một khoảng thời gian ngắn rồi mới
+# coi là deploy thành công. Hash 500 mật khẩu argon2id — mỗi cái cố ý tốn 64 MB
+# và gần một giây CPU — lâu hơn khoảng đó, nên chạy tuần tự thì deploy bị giết
+# khi seed còn dở dang. Mở cổng trước, dữ liệu hiện dần trong vài phút đầu.
+#
+# Seed hỏng cũng không kéo theo server: `set -e` không áp dụng cho job nền.
+node dist/db/seed.js &
 
 # `exec` để server thay thế luôn shell này, nhờ vậy SIGTERM đi thẳng tới Node.
 # Không có nó, shell nhận tín hiệu còn server thì không, và đoạn tắt êm trong
