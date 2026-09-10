@@ -437,30 +437,33 @@ npm run dev                       # http://localhost:5173
 
 ### Deploy lên Render
 
-[`render.yaml`](render.yaml) khai báo sẵn cả ba thành phần, nên trên Render chỉ cần
-**New → Blueprint** rồi trỏ vào repo này. Ba việc còn lại phải làm tay, vì chúng là secret hoặc
-phụ thuộc vào URL mà Render sinh ra sau khi tạo:
+[`render.yaml`](render.yaml) khai báo sẵn cả hai thành phần, nên trên Render chỉ cần
+**New → Blueprint** rồi trỏ vào repo này. Hai việc còn lại phải làm tay, vì chúng là secret:
 
-1. **`CORS_ORIGIN`** trên service `hrm-api` — điền URL của static site, ví dụ
-   `https://hrm-web.onrender.com`.
-2. **Rule rewrite** trên `hrm-web`: `/api/*` → `https://<url-của-api>/api/*`, action là
-   **Rewrite** chứ không phải Redirect. Nếu Render đổi tên service thì sửa lại `destination`
-   trong `render.yaml` cho khớp. Sai chỗ này thì đăng nhập được nhưng F5 là mất phiên, và không
-   có thông báo lỗi nào — lý do viết ngay trong file.
-3. **`AI_BASE_URL`, `AI_MODEL`, `AI_API_KEY`** — bất kỳ host nào tương thích OpenAI và có
+1. **`AI_BASE_URL`, `AI_MODEL`, `AI_API_KEY`** — bất kỳ host nào tương thích OpenAI và có
    tool-calling. Mục [Abstraction nhà cung cấp](#abstraction-nhà-cung-cấp) giải thích vì sao đổi
    nhà cung cấp không cần đụng vào code.
+2. **`CORS_ORIGIN`** — điền URL Render cấp cho service. Frontend gọi API bằng đường dẫn tương
+   đối trên cùng origin nên không có request cross-origin nào, nhưng đặt đúng vẫn hơn để bỏ
+   trống.
 
-Database thì không phải làm gì cả: `render.yaml` cho container chạy
-[`docker-start.sh`](backend/docker-start.sh), script này migrate, bật seed chạy nền, rồi khởi
-động server. Vài phút đầu sau lần deploy đầu tiên, web đã lên nhưng dữ liệu còn đang được đổ vào
-— seed chạy nền chứ không chặn server, vì Render chỉ chờ service mở cổng trong một khoảng ngắn
-rồi coi như deploy hỏng, mà hash 500 mật khẩu argon2id thì lâu hơn thế. Những lần khởi động sau,
-seed nhìn thấy database đã có tài khoản nên in một dòng rồi bỏ qua — nó không bao giờ tự xoá gì.
+**Một service, không phải hai.** [`Dockerfile`](Dockerfile) ở thư mục gốc build cả hai nửa và
+Express phục vụ frontend từ `./public`. Đây là quyết định về bảo mật chứ không phải chi phí:
+cookie refresh là `SameSite=Strict`, mà `onrender.com` nằm trong Public Suffix List, nên hai
+hostname con của nó là **hai site khác nhau**. Tách frontend ra static site riêng thì đăng nhập
+vẫn được, rồi F5 một cái là mất phiên — Safari còn chặn thẳng cookie kiểu đó. Cùng một origin
+thì câu hỏi đó không tồn tại.
 
-Tạo tay từng service thay vì dùng Blueprint cũng được; khi đó nhớ điền ô **Docker Command** của
-`hrm-api` là `./docker-start.sh`. Bỏ trống thì container chạy lệnh mặc định trong Dockerfile,
-tức là chỉ có server, không migrate và không seed.
+Database cũng không phải làm gì: container chạy [`docker-start.sh`](backend/docker-start.sh) —
+migrate, bật seed chạy nền, rồi khởi động server. Vài phút đầu sau lần deploy đầu tiên, web đã
+lên nhưng dữ liệu còn đang được đổ vào; seed chạy nền chứ không chặn server, vì Render chỉ chờ
+service mở cổng trong một khoảng ngắn rồi coi như deploy hỏng, mà hash 500 mật khẩu argon2id thì
+lâu hơn thế. Những lần khởi động sau, seed nhìn thấy database đã có tài khoản nên in một dòng
+rồi bỏ qua — nó không bao giờ tự xoá gì.
+
+Tạo tay thay vì dùng Blueprint cũng được. Khi đó service là **Docker**, Root Directory để
+**trống** (Dockerfile nằm ở gốc repo), và ô **Docker Command** điền `./docker-start.sh`. Bỏ
+trống ô đó thì container chỉ chạy server, không migrate và không seed.
 
 Muốn dữ liệu tự dựng lại mỗi đêm thì thêm external connection string của database vào GitHub
 secret `DEMO_DATABASE_URL`, cho [`demo-reset.yml`](.github/workflows/demo-reset.yml) dùng.

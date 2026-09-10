@@ -1,15 +1,19 @@
 # Render Blueprint — toàn bộ bản demo trong một file.
 #
-# Ba thành phần: một Postgres miễn phí, API chạy bằng Docker, và frontend là
-# static site nằm trên CDN của Render.
+# Hai thành phần: một Postgres miễn phí, và một web service Docker phục vụ cả
+# API lẫn frontend.
 #
-# Dòng quan trọng nhất là `rewrite` ở cuối file. Cookie refresh đặt
-# SameSite=Strict (xem backend/src/modules/auth/auth.tokens.ts), nghĩa là trình
-# duyệt chỉ gửi nó khi API và trang gọi API thuộc cùng một site. Hai hostname
-# *.onrender.com khác nhau là hai site khác nhau: đăng nhập vẫn được, nhưng F5
-# một cái là mất phiên, và lỗi đó không hiện ra ở đâu cả. Để static site tự
-# proxy /api sang backend thì trình duyệt chỉ nhìn thấy một domain duy nhất —
-# cookie hoạt động, và tính chất chống CSRF của `strict` vẫn còn nguyên.
+# Một service chứ không phải hai, và đó là quyết định về bảo mật chứ không phải
+# về chi phí. Cookie refresh đặt SameSite=Strict (xem
+# backend/src/modules/auth/auth.tokens.ts), nên trình duyệt chỉ gửi nó khi
+# trang web và API thuộc cùng một site. `onrender.com` nằm trong Public Suffix
+# List, nghĩa là hai hostname con của nó là hai site khác nhau: tách frontend
+# ra static site riêng thì đăng nhập vẫn được, rồi F5 một cái là mất phiên —
+# và Safari chặn cookie kiểu đó ngay từ đầu. Cùng một origin thì câu hỏi đó
+# không tồn tại, và tính chất chống CSRF của `strict` vẫn còn nguyên.
+#
+# Dockerfile ở thư mục gốc build cả hai nửa; app.ts phục vụ frontend từ
+# ./public khi thấy nó ở đó.
 
 databases:
   - name: hrm-db
@@ -20,16 +24,15 @@ databases:
 
 services:
   - type: web
-    name: hrm-api
+    name: ai-hrm
     runtime: docker
     plan: free
     region: singapore
-    rootDir: backend
     dockerfilePath: ./Dockerfile
     healthCheckPath: /health
 
-    # Migrate, seed, rồi mới chạy server — xem backend/docker-start.sh để biết
-    # vì sao cách này chỉ đúng với một bản demo một instance.
+    # Migrate, bật seed chạy nền, rồi khởi động server — xem
+    # backend/docker-start.sh để biết vì sao seed không được chặn cổng.
     #
     # Là một file script chứ không phải chuỗi `sh -c "..."` viết thẳng ở đây, vì
     # ô Docker Command của Render không qua shell: nó nhận nguyên cả câu lệnh làm
@@ -53,8 +56,9 @@ services:
       - key: JWT_REFRESH_SECRET
         generateValue: true
 
-      # Điền trong dashboard sau lần deploy đầu, khi đã biết URL của static
-      # site. Ví dụ: https://hrm-web.onrender.com
+      # Frontend gọi API bằng đường dẫn tương đối trên cùng origin, nên không
+      # có request cross-origin nào để cho phép. Vẫn đặt đúng URL của chính
+      # service này, để một client khác gọi tới thì hành vi vẫn rõ ràng.
       - key: CORS_ORIGIN
         sync: false
 
@@ -85,31 +89,3 @@ services:
       # chỉ có 512 MB — vốn đã phải chia cho cả server đang chạy song song.
       - key: SEED_HASH_CONCURRENCY
         value: 4
-
-  - type: web
-    name: hrm-web
-    runtime: static
-    rootDir: frontend
-    buildCommand: npm ci && npm run build
-    staticPublishPath: ./dist
-
-    envVars:
-      # Đường dẫn tương đối, nên mọi request đi tới chính domain của static site
-      # rồi được rewrite bên dưới chuyển tiếp sang API.
-      - key: VITE_API_URL
-        value: /api/v1
-
-    # Thứ tự có ý nghĩa: rule chạy từ trên xuống, và rule đầu tiên khớp thì
-    # dừng. Đảo hai cái này thì `/*` nuốt luôn mọi lời gọi API và trả về
-    # index.html — frontend nhận HTML ở chỗ nó chờ JSON.
-    routes:
-      - type: rewrite
-        source: /api/*
-        destination: https://hrm-api.onrender.com/api/*
-
-      # Router nằm ở phía client, nên URL không tương ứng với file nào trên
-      # đĩa. Không có dòng này thì mở thẳng /employees, hay chỉ cần F5 trên đó,
-      # là 404 — trang chủ vẫn chạy nên lỗi này rất dễ lọt.
-      - type: rewrite
-        source: /*
-        destination: /index.html

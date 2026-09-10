@@ -1,3 +1,6 @@
+import { existsSync } from 'node:fs';
+import path from 'node:path';
+
 import cookieParser from 'cookie-parser';
 import cors from 'cors';
 import express, { type Express } from 'express';
@@ -8,6 +11,23 @@ import { corsOrigins, isProduction } from './config/env.js';
 import { errorHandler, notFoundHandler } from './middlewares/error-handler.js';
 import { httpLogger, requestId } from './middlewares/request-context.js';
 import { apiRouter } from './routes.js';
+
+/**
+ * A built frontend, if one was shipped alongside this server.
+ *
+ * Serving both halves from one process is not a convenience — it is what makes
+ * the refresh cookie work. That cookie is SameSite=Strict, so the browser sends
+ * it only when the page and the API share a site, and two hostnames under a
+ * public suffix like `onrender.com` are two different sites. Split them and
+ * login succeeds, then the session vanishes on the first reload; Safari drops
+ * the cookie outright.
+ *
+ * Usually absent: in development Vite serves the frontend, in tests there is no
+ * frontend at all, and in the Compose stack nginx serves it. Then none of this
+ * is mounted and the process stays a pure JSON API.
+ */
+const FRONTEND_DIR = path.resolve(process.cwd(), 'public');
+const servesFrontend = existsSync(path.join(FRONTEND_DIR, 'index.html'));
 
 /**
  * Builds the Express application without starting a server.
@@ -40,8 +60,24 @@ export function createApp(): Express {
 
   app.use(
     helmet({
-      // This API serves JSON, never HTML, so a restrictive CSP costs nothing.
-      contentSecurityPolicy: { directives: { defaultSrc: ["'none'"], frameAncestors: ["'none'"] } },
+      // Serving only JSON, a restrictive CSP costs nothing. Serving the SPA as
+      // well, `default-src 'none'` would block the page's own bundle — so the
+      // policy opens up to exactly this origin. Inline *styles* are allowed
+      // because the charting library writes them; inline scripts are not.
+      contentSecurityPolicy: servesFrontend
+        ? {
+            directives: {
+              defaultSrc: ["'self'"],
+              scriptSrc: ["'self'"],
+              styleSrc: ["'self'", "'unsafe-inline'"],
+              imgSrc: ["'self'", 'data:', 'blob:'],
+              fontSrc: ["'self'", 'data:'],
+              connectSrc: ["'self'"],
+              objectSrc: ["'none'"],
+              frameAncestors: ["'none'"],
+            },
+          }
+        : { directives: { defaultSrc: ["'none'"], frameAncestors: ["'none'"] } },
       crossOriginResourcePolicy: { policy: 'same-site' },
     }),
   );
@@ -80,6 +116,34 @@ export function createApp(): Express {
   });
 
   app.use('/api/v1', apiRouter);
+
+  if (servesFrontend) {
+    app.use(
+      express.static(FRONTEND_DIR, {
+        // index.html is served by the fallback below, which sets its own
+        // caching. Letting express.static answer "/" first would cache it.
+        index: false,
+        setHeaders: (res, filePath) => {
+          // Asset filenames carry a content hash, so a name never refers to
+          // two different files and can be cached indefinitely.
+          if (!filePath.endsWith('index.html')) {
+            res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+          }
+        },
+      }),
+    );
+
+    // The router owns the URL. Anything that is not a file and not the API is
+    // a page, and gets index.html — otherwise opening /employees directly, or
+    // simply pressing F5 on it, is a 404. The home page keeps working either
+    // way, which is what makes that bug easy to miss.
+    app.get(/^(?!\/api\/)/, (_req, res) => {
+      // Never cached: it names the hashed bundles, and a stale copy points at
+      // files the last deploy already removed.
+      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+      res.sendFile(path.join(FRONTEND_DIR, 'index.html'));
+    });
+  }
 
   app.use(notFoundHandler);
   app.use(errorHandler);
