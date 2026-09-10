@@ -48,6 +48,18 @@ COPY --from=build /app/dist ./dist
 COPY --from=build /app/drizzle ./drizzle
 COPY drizzle.config.ts ./
 
+# The demo start script: migrate, seed, then serve. Nothing uses it unless the
+# platform is told to — the default CMD below still just runs the server.
+COPY docker-start.sh ./
+
+# Two things the `node` user cannot do for itself, so they happen while this is
+# still root: making the script executable, and creating a directory it may
+# write to. The seed writes generated credentials to ./seed-output, and /app
+# belongs to root — without this, seeding dies on EACCES.
+RUN chmod +x docker-start.sh \
+    && mkdir -p seed-output \
+    && chown node:node seed-output
+
 # Never run as root. The `node` user ships with the official image.
 USER node
 

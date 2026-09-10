@@ -1,0 +1,5 @@
+# Shell script luôn checkout bằng LF, kể cả trên Windows. Một file .sh dính
+# CRLF thì dòng `#!/bin/sh` biến thành `#!/bin/sh\r`, và Linux đi tìm một trình
+# thông dịch tên là "sh\r" — lỗi báo ra là "not found", không nhắc gì tới dòng
+# kết thúc, nên rất khó đoán.
+*.sh text eol=lf
