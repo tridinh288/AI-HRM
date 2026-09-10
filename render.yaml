@@ -1,0 +1,98 @@
+# Render Blueprint — toàn bộ bản demo trong một file.
+#
+# Ba thành phần: một Postgres miễn phí, API chạy bằng Docker, và frontend là
+# static site nằm trên CDN của Render.
+#
+# Dòng quan trọng nhất là `rewrite` ở cuối file. Cookie refresh đặt
+# SameSite=Strict (xem backend/src/modules/auth/auth.tokens.ts), nghĩa là trình
+# duyệt chỉ gửi nó khi API và trang gọi API thuộc cùng một site. Hai hostname
+# *.onrender.com khác nhau là hai site khác nhau: đăng nhập vẫn được, nhưng F5
+# một cái là mất phiên, và lỗi đó không hiện ra ở đâu cả. Để static site tự
+# proxy /api sang backend thì trình duyệt chỉ nhìn thấy một domain duy nhất —
+# cookie hoạt động, và tính chất chống CSRF của `strict` vẫn còn nguyên.
+
+databases:
+  - name: hrm-db
+    databaseName: hrm
+    user: hrm
+    plan: free
+    region: singapore
+
+services:
+  - type: web
+    name: hrm-api
+    runtime: docker
+    plan: free
+    region: singapore
+    rootDir: backend
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /health
+
+    # Migration chạy lúc khởi động, không phải bước deploy riêng như
+    # src/db/migrate.ts mô tả — gói free không có pre-deploy command. Chấp nhận
+    # được ở đây đúng vì gói free cũng chỉ chạy một instance; nhiều instance thì
+    # chúng sẽ tranh nhau alter cùng một bảng.
+    dockerCommand: sh -c "node dist/db/migrate.js && node dist/server.js"
+
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 4000
+
+      - key: DATABASE_URL
+        fromDatabase:
+          name: hrm-db
+          property: connectionString
+
+      # Render tự sinh, không ai phải nghĩ ra và không ai nhìn thấy.
+      - key: JWT_ACCESS_SECRET
+        generateValue: true
+      - key: JWT_REFRESH_SECRET
+        generateValue: true
+
+      # Điền trong dashboard sau lần deploy đầu, khi đã biết URL của static
+      # site. Ví dụ: https://hrm-web.onrender.com
+      - key: CORS_ORIGIN
+        sync: false
+
+      # Provider tương thích OpenAI. Điền AI_BASE_URL, AI_MODEL và AI_API_KEY
+      # trong dashboard — chúng là secret hoặc phụ thuộc nhà cung cấp bạn chọn.
+      - key: AI_PROVIDER
+        value: openai
+      - key: AI_BASE_URL
+        sync: false
+      - key: AI_MODEL
+        sync: false
+      - key: AI_API_KEY
+        sync: false
+
+      # Bản demo công khai: siết hạn mức AI lại so với mặc định, vì mỗi câu hỏi
+      # tiêu tốn quota của nhà cung cấp.
+      - key: AI_RATE_LIMIT_PER_HOUR
+        value: 15
+      - key: AI_TIMEOUT_MS
+        value: 45000
+
+      - key: COMPANY_TIMEZONE
+        value: Asia/Ho_Chi_Minh
+      - key: LOG_LEVEL
+        value: info
+
+  - type: web
+    name: hrm-web
+    runtime: static
+    rootDir: frontend
+    buildCommand: npm ci && npm run build
+    staticPublishPath: ./dist
+
+    envVars:
+      # Đường dẫn tương đối, nên mọi request đi tới chính domain của static site
+      # rồi được rewrite bên dưới chuyển tiếp sang API.
+      - key: VITE_API_URL
+        value: /api/v1
+
+    routes:
+      - type: rewrite
+        source: /api/*
+        destination: https://hrm-api.onrender.com/api/*

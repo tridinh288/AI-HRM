@@ -9,6 +9,26 @@ cho schema và migration, Docker Compose để chạy trọn bộ, và 242 test 
 
 ---
 
+## Demo
+
+**<https://hrm-web.onrender.com>** — ba tài khoản ở mục [Tài khoản demo](#tài-khoản-demo) đăng
+nhập được ngay, mỗi tài khoản một góc nhìn khác nhau.
+
+Cứ thử thoải mái: đổi lương, khoá tài khoản, duyệt phép, hỏi trợ lý AI những câu mà role đang
+đăng nhập không được phép hỏi. Dữ liệu dựng lại từ đầu mỗi đêm
+([`demo-reset.yml`](.github/workflows/demo-reset.yml)), nên không có gì hỏng vĩnh viễn.
+
+Vài điều nên biết trước khi bấm:
+
+- Chạy trên gói miễn phí của Render nên API ngủ khi không ai dùng. Lần gọi đầu tiên sau một thời
+  gian dài có thể chờ 30–60 giây; sau đó thì bình thường.
+- Trợ lý AI dùng mô hình miễn phí và bị siết còn 15 câu mỗi giờ cho mỗi tài khoản.
+- Mọi dữ liệu đều do seed sinh ra. Không có người thật nào trong đó.
+
+Toàn bộ hạ tầng nằm trong [`render.yaml`](render.yaml): một blueprint, ba thành phần.
+
+---
+
 ## Vì sao có dự án này
 
 Phần lớn demo HRM là vài form CRUD trên vài bảng. Ở đây có hai điều đáng để nói đến:
@@ -414,6 +434,33 @@ cd frontend
 npm install
 npm run dev                       # http://localhost:5173
 ```
+
+### Deploy lên Render
+
+[`render.yaml`](render.yaml) khai báo sẵn cả ba thành phần, nên trên Render chỉ cần
+**New → Blueprint** rồi trỏ vào repo này. Bốn việc còn lại phải làm tay, vì chúng là secret hoặc
+phụ thuộc vào URL mà Render sinh ra sau khi tạo:
+
+1. **`CORS_ORIGIN`** trên service `hrm-api` — điền URL của static site, ví dụ
+   `https://hrm-web.onrender.com`.
+2. **Nếu Render đổi tên service** (khi `hrm-api` đã có người dùng), sửa lại `destination` của
+   rule rewrite trong `render.yaml` cho khớp, rồi deploy lại. Sai chỗ này thì đăng nhập được
+   nhưng F5 là mất phiên — xem phần giải thích ngay trong file.
+3. **`AI_BASE_URL`, `AI_MODEL`, `AI_API_KEY`** — bất kỳ host nào tương thích OpenAI và có
+   tool-calling. Mục [Abstraction nhà cung cấp](#abstraction-nhà-cung-cấp) giải thích vì sao đổi
+   nhà cung cấp không cần đụng vào code.
+4. **Seed lần đầu** — chạy từ máy mình, trỏ vào external connection string của database:
+
+   ```bash
+   cd backend
+   DATABASE_URL='<external connection string của Render>' npm run db:seed
+   ```
+
+   Những lần sau để [`demo-reset.yml`](.github/workflows/demo-reset.yml) lo, sau khi thêm chuỗi
+   kết nối đó vào GitHub secret `DEMO_DATABASE_URL`.
+
+Migration thì không phải làm gì: `render.yaml` cho container chạy `dist/db/migrate.js` trước khi
+khởi động server.
 
 ### Tài khoản demo
 

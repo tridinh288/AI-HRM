@@ -1,0 +1,51 @@
+name: Demo reset
+
+# Bản demo là công khai, nên bất kỳ ai vào cũng sửa được dữ liệu — đổi lương,
+# khoá tài khoản, xoá phòng ban. Đó là điều nên khuyến khích: người xem cần bấm
+# thử mới biết nó chạy thật. Thay vì hạn chế quyền của họ, mỗi đêm dựng lại
+# công ty từ đầu. Seed là tất định, nên bản demo sáng hôm sau giống hệt hôm qua.
+#
+# Cần một secret: DEMO_DATABASE_URL — external connection string của Postgres
+# trên Render.
+
+on:
+  schedule:
+    # 19:00 UTC = 02:00 giờ Việt Nam.
+    - cron: '0 19 * * *'
+  # Chạy tay khi demo hỏng giữa ngày, hoặc ngay trước một buổi phỏng vấn.
+  workflow_dispatch:
+
+jobs:
+  reset:
+    name: Dựng lại dữ liệu demo
+    runs-on: ubuntu-latest
+    # Không có secret thì bỏ qua trong im lặng, thay vì fail mỗi đêm một lần
+    # trên fork của người khác.
+    if: github.repository == 'tridinh288/AI-HRM'
+
+    defaults:
+      run:
+        working-directory: backend
+
+    env:
+      DATABASE_URL: ${{ secrets.DEMO_DATABASE_URL }}
+      # Seed chỉ ghi dữ liệu và không ký token nào. Hai giá trị này có mặt duy
+      # nhất để env.ts qua được bước validate lúc khởi động — nó bắt buộc hai
+      # secret phải khác nhau và dài ít nhất 32 ký tự. Chúng không bao giờ chạm
+      # tới server đang chạy trên Render.
+      JWT_ACCESS_SECRET: seed-only-placeholder-access-secret-000000
+      JWT_REFRESH_SECRET: seed-only-placeholder-refresh-secret-00000
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - run: npm ci
+
+      - name: Seed lại từ đầu
+        run: npm run db:seed -- --reset
