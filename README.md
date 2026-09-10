@@ -438,29 +438,30 @@ npm run dev                       # http://localhost:5173
 ### Deploy lên Render
 
 [`render.yaml`](render.yaml) khai báo sẵn cả ba thành phần, nên trên Render chỉ cần
-**New → Blueprint** rồi trỏ vào repo này. Bốn việc còn lại phải làm tay, vì chúng là secret hoặc
+**New → Blueprint** rồi trỏ vào repo này. Ba việc còn lại phải làm tay, vì chúng là secret hoặc
 phụ thuộc vào URL mà Render sinh ra sau khi tạo:
 
 1. **`CORS_ORIGIN`** trên service `hrm-api` — điền URL của static site, ví dụ
    `https://hrm-web.onrender.com`.
-2. **Nếu Render đổi tên service** (khi `hrm-api` đã có người dùng), sửa lại `destination` của
-   rule rewrite trong `render.yaml` cho khớp, rồi deploy lại. Sai chỗ này thì đăng nhập được
-   nhưng F5 là mất phiên — xem phần giải thích ngay trong file.
+2. **Rule rewrite** trên `hrm-web`: `/api/*` → `https://<url-của-api>/api/*`, action là
+   **Rewrite** chứ không phải Redirect. Nếu Render đổi tên service thì sửa lại `destination`
+   trong `render.yaml` cho khớp. Sai chỗ này thì đăng nhập được nhưng F5 là mất phiên, và không
+   có thông báo lỗi nào — lý do viết ngay trong file.
 3. **`AI_BASE_URL`, `AI_MODEL`, `AI_API_KEY`** — bất kỳ host nào tương thích OpenAI và có
    tool-calling. Mục [Abstraction nhà cung cấp](#abstraction-nhà-cung-cấp) giải thích vì sao đổi
    nhà cung cấp không cần đụng vào code.
-4. **Seed lần đầu** — chạy từ máy mình, trỏ vào external connection string của database:
 
-   ```bash
-   cd backend
-   DATABASE_URL='<external connection string của Render>' npm run db:seed
-   ```
+Database thì không phải làm gì cả: `render.yaml` cho container chạy
+[`docker-start.sh`](backend/docker-start.sh), script này migrate rồi seed trước khi khởi động
+server. Lần deploy đầu tiên là đã có sẵn một công ty 500 người. Những lần khởi động sau, seed
+nhìn thấy database đã có tài khoản nên in một dòng rồi bỏ qua — nó không bao giờ tự xoá gì.
 
-   Những lần sau để [`demo-reset.yml`](.github/workflows/demo-reset.yml) lo, sau khi thêm chuỗi
-   kết nối đó vào GitHub secret `DEMO_DATABASE_URL`.
+Tạo tay từng service thay vì dùng Blueprint cũng được; khi đó nhớ điền ô **Docker Command** của
+`hrm-api` là `./docker-start.sh`. Bỏ trống thì container chạy lệnh mặc định trong Dockerfile,
+tức là chỉ có server, không migrate và không seed.
 
-Migration thì không phải làm gì: `render.yaml` cho container chạy `dist/db/migrate.js` trước khi
-khởi động server.
+Muốn dữ liệu tự dựng lại mỗi đêm thì thêm external connection string của database vào GitHub
+secret `DEMO_DATABASE_URL`, cho [`demo-reset.yml`](.github/workflows/demo-reset.yml) dùng.
 
 ### Tài khoản demo
 

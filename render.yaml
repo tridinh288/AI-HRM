@@ -28,11 +28,13 @@ services:
     dockerfilePath: ./Dockerfile
     healthCheckPath: /health
 
-    # Migration chạy lúc khởi động, không phải bước deploy riêng như
-    # src/db/migrate.ts mô tả — gói free không có pre-deploy command. Chấp nhận
-    # được ở đây đúng vì gói free cũng chỉ chạy một instance; nhiều instance thì
-    # chúng sẽ tranh nhau alter cùng một bảng.
-    dockerCommand: sh -c "node dist/db/migrate.js && node dist/server.js"
+    # Migrate, seed, rồi mới chạy server — xem backend/docker-start.sh để biết
+    # vì sao cách này chỉ đúng với một bản demo một instance.
+    #
+    # Là một file script chứ không phải chuỗi `sh -c "..."` viết thẳng ở đây, vì
+    # ô Docker Command của Render không qua shell: nó nhận nguyên cả câu lệnh làm
+    # tên chương trình và báo "not found" mà không nói vì sao.
+    dockerCommand: ./docker-start.sh
 
     envVars:
       - key: NODE_ENV
