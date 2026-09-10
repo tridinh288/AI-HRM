@@ -1,0 +1,20 @@
+# Build context cho Dockerfile ở thư mục gốc, cái build cả hai nửa.
+#
+# Mỗi package đã có .dockerignore riêng, nhưng Docker chỉ đọc file ở gốc của
+# build context — nên nếu thiếu file này, cả hai thư mục node_modules được gửi
+# lên daemon rồi bị `npm ci` ghi đè ngay sau đó.
+node_modules
+**/node_modules
+**/dist
+**/coverage
+backend/tests
+backend/seed-output
+.env
+.env.*
+!.env.example
+*.log
+.git
+.github
+docs
+README.md
+*.md
