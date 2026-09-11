@@ -61,15 +61,25 @@ export function AppLayout() {
           onClick={() => setMobileOpen(false)}
           className={({ isActive }) =>
             clsx(
-              'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
+              'group flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium',
+              'transition-all duration-150',
               isActive
-                ? 'bg-brand-50 text-brand-700'
+                ? 'bg-brand-600 text-white shadow-sm shadow-brand-900/25'
                 : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900',
             )
           }
         >
-          <item.icon className="h-4.5 w-4.5" />
-          {item.label}
+          {({ isActive }) => (
+            <>
+              <item.icon
+                className={clsx(
+                  'h-4.5 w-4.5 transition-colors',
+                  isActive ? 'text-white' : 'text-slate-400 group-hover:text-brand-600',
+                )}
+              />
+              {item.label}
+            </>
+          )}
         </NavLink>
       ))}
     </nav>
@@ -77,16 +87,19 @@ export function AppLayout() {
 
   const sidebarContent = (
     <div className="flex h-full flex-col gap-6 p-4">
-      <div className="flex items-center gap-2.5 px-1">
-        <div className="rounded-lg bg-brand-600 p-1.5 text-white">
+      <div className="flex items-center gap-3 px-1 pt-1">
+        <div className="rounded-xl bg-gradient-to-br from-brand-500 to-brand-700 p-2 text-white shadow-sm shadow-brand-900/25">
           <Building2 className="h-5 w-5" />
         </div>
-        <span className="font-semibold text-slate-900">HRM</span>
+        <div className="leading-tight">
+          <p className="font-bold tracking-tight text-slate-900">HRM</p>
+          <p className="text-[11px] font-medium text-slate-400">People Operations</p>
+        </div>
       </div>
 
       {nav}
 
-      <div className="border-t border-slate-200 pt-4">
+      <div className="border-t border-slate-200/70 pt-4">
         {/* The account block is the link to the profile — the conventional
             place to look for it, and the only page every role shares. */}
         <NavLink
@@ -94,23 +107,23 @@ export function AppLayout() {
           onClick={() => setMobileOpen(false)}
           className={({ isActive }) =>
             clsx(
-              'mb-3 flex items-center gap-3 rounded-lg px-1 py-1.5 transition-colors',
-              isActive ? 'bg-brand-50' : 'hover:bg-slate-100',
+              'mb-2 flex items-center gap-3 rounded-xl p-2 transition-colors',
+              isActive ? 'bg-brand-50 ring-1 ring-brand-200/70' : 'hover:bg-slate-100',
             )
           }
         >
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-slate-200 text-xs font-semibold text-slate-600">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-brand-400 to-brand-600 text-xs font-bold text-white">
             {user ? initials(user.email.split('@')[0] ?? user.email) : '?'}
           </div>
           <div className="min-w-0">
-            <p className="truncate text-sm font-medium text-slate-900">{user?.email}</p>
+            <p className="truncate text-[13px] font-semibold text-slate-900">{user?.email}</p>
             <Badge tone="info">{user?.role.toLowerCase()}</Badge>
           </div>
         </NavLink>
         <button
           type="button"
           onClick={() => void logout()}
-          className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100"
+          className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-slate-500 transition-colors hover:bg-rose-50 hover:text-rose-600"
         >
           <LogOut className="h-4.5 w-4.5" />
           Sign out
@@ -122,7 +135,7 @@ export function AppLayout() {
   return (
     <div className="flex h-full">
       {/* Desktop sidebar */}
-      <aside className="hidden w-60 shrink-0 border-r border-slate-200 bg-white lg:block">
+      <aside className="hidden w-64 shrink-0 border-r border-slate-200/70 bg-white/70 backdrop-blur-xl lg:block">
         {sidebarContent}
       </aside>
 
@@ -134,7 +147,7 @@ export function AppLayout() {
             onClick={() => setMobileOpen(false)}
             aria-hidden
           />
-          <aside className="absolute inset-y-0 left-0 w-64 bg-white shadow-xl">
+          <aside className="absolute inset-y-0 left-0 w-64 bg-white shadow-lg">
             <button
               type="button"
               onClick={() => setMobileOpen(false)}
@@ -149,19 +162,19 @@ export function AppLayout() {
       )}
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="flex items-center gap-3 border-b border-slate-200 bg-white px-4 py-3 lg:hidden">
+        <header className="sticky top-0 z-20 flex items-center gap-3 border-b border-slate-200/70 bg-white/80 px-4 py-3 backdrop-blur-xl lg:hidden">
           <button
             type="button"
             onClick={() => setMobileOpen(true)}
-            className="rounded-lg p-1.5 text-slate-600 hover:bg-slate-100"
+            className="rounded-xl p-1.5 text-slate-600 transition-colors hover:bg-slate-100"
             aria-label="Open navigation"
           >
             <Menu className="h-5 w-5" />
           </button>
-          <span className="font-semibold text-slate-900">HRM</span>
+          <span className="font-bold tracking-tight text-slate-900">HRM</span>
         </header>
 
-        <main className="flex-1 overflow-y-auto px-4 py-6 sm:px-6 lg:px-8">
+        <main className="flex-1 overflow-y-auto px-4 py-6 sm:px-6 lg:px-10 lg:py-8">
           <div className="mx-auto max-w-7xl">
             <Outlet />
           </div>

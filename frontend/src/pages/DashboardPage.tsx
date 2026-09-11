@@ -34,10 +34,24 @@ import type { DashboardCharts, DashboardOverview, LateEmployee } from '../lib/ty
 /**
  * Chart colours come from one palette, so a department is the same colour in
  * every chart and no two adjacent series are hard to tell apart.
+ *
+ * Six hues spread around the wheel but held at roughly one lightness and one
+ * chroma, so they read as a set rather than as whatever the defaults were.
+ * Two positions carry meaning and cannot be reordered: index 0 is the brand
+ * violet and marks the on-time series, index 3 is the amber this application
+ * uses everywhere for late and pending.
  */
-const PALETTE = ['#4f46e5', '#0ea5e9', '#10b981', '#f59e0b', '#ec4899', '#8b5cf6'];
+const PALETTE = ['#6537e3', '#0d9bb0', '#12a06a', '#e0900f', '#dc3f6e', '#3f6fd8'];
 
-const axisStyle = { fontSize: 12, fill: '#64748b' };
+const axisStyle = { fontSize: 12, fill: '#746e85' };
+
+/** Tooltips match the cards they float above: same radius, same soft shadow. */
+const tooltipStyle = {
+  fontSize: 12,
+  borderRadius: 12,
+  borderColor: '#e7e4ef',
+  boxShadow: '0 8px 20px -6px rgb(58 33 126 / 0.12)',
+};
 
 /**
  * Every figure on this page is a summary of a list that lives on another page.
@@ -49,7 +63,9 @@ function DetailLink({ to, children }: { to: string; children: string }) {
   return (
     <Link
       to={to}
-      className="inline-flex items-center gap-1 text-xs font-medium text-brand-600 hover:text-brand-700 hover:underline"
+      // Never wrapped: a two-word link breaking across lines beside a heading
+      // reads as a layout accident rather than a control.
+      className="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-lg px-2 py-1 text-xs font-semibold text-brand-600 transition-colors hover:bg-brand-50 hover:text-brand-700"
     >
       {children}
       <ArrowRight className="h-3.5 w-3.5" />
@@ -143,7 +159,7 @@ export function DashboardPage() {
             <div className="h-64">
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={charts.data.attendanceTrend}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e7e4ef" vertical={false} />
                   <XAxis
                     dataKey="workDate"
                     tick={axisStyle}
@@ -153,7 +169,7 @@ export function DashboardPage() {
                   />
                   <YAxis tick={axisStyle} allowDecimals={false} width={32} />
                   <Tooltip
-                    contentStyle={{ fontSize: 12, borderRadius: 8, borderColor: '#e2e8f0' }}
+                    contentStyle={tooltipStyle}
                   />
                   <Legend wrapperStyle={{ fontSize: 12 }} />
                   <Line
@@ -186,7 +202,7 @@ export function DashboardPage() {
             <div className="h-64">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={charts.data.headcountByDepartment} layout="vertical">
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" horizontal={false} />
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e7e4ef" horizontal={false} />
                   <XAxis type="number" tick={axisStyle} allowDecimals={false} />
                   <YAxis
                     type="category"
@@ -195,7 +211,7 @@ export function DashboardPage() {
                     width={110}
                   />
                   <Tooltip
-                    contentStyle={{ fontSize: 12, borderRadius: 8, borderColor: '#e2e8f0' }}
+                    contentStyle={tooltipStyle}
                     formatter={(value: number) => [value, 'Employees']}
                   />
                   {/* Recharts hands the clicked bar's data row back as `payload`;
@@ -227,11 +243,11 @@ export function DashboardPage() {
             <div className="h-64">
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={charts.data.employeeGrowth}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e7e4ef" vertical={false} />
                   <XAxis dataKey="month" tick={axisStyle} tickFormatter={formatMonth} />
                   <YAxis tick={axisStyle} allowDecimals={false} width={32} />
                   <Tooltip
-                    contentStyle={{ fontSize: 12, borderRadius: 8, borderColor: '#e2e8f0' }}
+                    contentStyle={tooltipStyle}
                     labelFormatter={formatMonth}
                   />
                   <Legend wrapperStyle={{ fontSize: 12 }} />
@@ -266,11 +282,11 @@ export function DashboardPage() {
             <div className="h-64">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={charts.data.leaveStatistics}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e7e4ef" vertical={false} />
                   <XAxis dataKey="leaveTypeName" tick={axisStyle} />
                   <YAxis tick={axisStyle} allowDecimals={false} width={32} />
                   <Tooltip
-                    contentStyle={{ fontSize: 12, borderRadius: 8, borderColor: '#e2e8f0' }}
+                    contentStyle={tooltipStyle}
                   />
                   <Legend wrapperStyle={{ fontSize: 12 }} />
                   <Bar dataKey="approvedDays" name="Approved days" fill={PALETTE[0]} radius={[4, 4, 0, 0]} />
@@ -331,7 +347,7 @@ export function DashboardPage() {
                   >
                     <Td>
                       <span className="font-medium text-slate-900">{employee.fullName}</span>
-                      <span className="ml-2 text-xs text-slate-400">{employee.employeeCode}</span>
+                      <span className="code ml-2 text-slate-400">{employee.employeeCode}</span>
                     </Td>
                     <Td>{employee.departmentName ?? '—'}</Td>
                     <Td align="right">{employee.lateDays}</Td>

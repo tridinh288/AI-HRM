@@ -18,13 +18,25 @@ import { Link } from 'react-router-dom';
 
 type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger' | 'success';
 
+/**
+ * Filled buttons carry a shadow tinted with their own colour rather than black.
+ * A grey shadow under a violet button reads as dirt; a violet one reads as the
+ * button sitting slightly above the page.
+ */
 const buttonStyles: Record<ButtonVariant, string> = {
-  primary: 'bg-brand-600 text-white hover:bg-brand-700 disabled:bg-brand-300',
+  primary:
+    'bg-brand-600 text-white shadow-sm shadow-brand-900/25 hover:bg-brand-700 ' +
+    'hover:shadow-md hover:shadow-brand-900/25 disabled:bg-brand-300 disabled:shadow-none',
   secondary:
-    'bg-white text-slate-700 ring-1 ring-inset ring-slate-300 hover:bg-slate-50 disabled:text-slate-400',
-  ghost: 'text-slate-600 hover:bg-slate-100 disabled:text-slate-300',
-  danger: 'bg-rose-600 text-white hover:bg-rose-700 disabled:bg-rose-300',
-  success: 'bg-emerald-600 text-white hover:bg-emerald-700 disabled:bg-emerald-300',
+    'bg-white text-slate-700 shadow-xs ring-1 ring-inset ring-slate-200 hover:bg-slate-50 ' +
+    'hover:ring-slate-300 disabled:text-slate-400 disabled:shadow-none',
+  ghost: 'text-slate-600 hover:bg-slate-100 hover:text-slate-900 disabled:text-slate-300',
+  danger:
+    'bg-rose-600 text-white shadow-sm shadow-rose-900/25 hover:bg-rose-700 ' +
+    'disabled:bg-rose-300 disabled:shadow-none',
+  success:
+    'bg-emerald-600 text-white shadow-sm shadow-emerald-900/25 hover:bg-emerald-700 ' +
+    'disabled:bg-emerald-300 disabled:shadow-none',
 };
 
 export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
@@ -52,9 +64,12 @@ export function Button({
       // the user just sees an error they did not cause.
       disabled={disabled || loading}
       className={clsx(
-        'inline-flex items-center justify-center gap-2 rounded-lg font-medium transition-colors',
-        'disabled:cursor-not-allowed',
-        size === 'sm' ? 'px-3 py-1.5 text-sm' : 'px-4 py-2 text-sm',
+        'inline-flex items-center justify-center gap-2 rounded-xl font-medium',
+        // The press is worth animating: a button that moves under the finger
+        // confirms the click before the network does.
+        'transition-all duration-150 active:scale-[0.98]',
+        'disabled:cursor-not-allowed disabled:active:scale-100',
+        size === 'sm' ? 'px-3 py-1.5 text-sm' : 'px-4 py-2.5 text-sm',
         buttonStyles[variant],
         className,
       )}
@@ -81,8 +96,8 @@ export function Card({
   return (
     <div
       className={clsx(
-        'rounded-xl border border-slate-200 bg-white shadow-sm',
-        padded && 'p-5',
+        'rounded-2xl border border-slate-200/80 bg-white shadow-sm',
+        padded && 'p-5 sm:p-6',
         className,
       )}
     >
@@ -103,8 +118,8 @@ export function CardHeader({
   return (
     <div className="mb-4 flex items-start justify-between gap-4">
       <div>
-        <h2 className="text-base font-semibold text-slate-900">{title}</h2>
-        {description && <p className="mt-0.5 text-sm text-slate-500">{description}</p>}
+        <h2 className="text-base font-semibold tracking-tight text-slate-900">{title}</h2>
+        {description && <p className="mt-1 text-sm text-slate-500">{description}</p>}
       </div>
       {action}
     </div>
@@ -121,10 +136,10 @@ export function PageHeader({
   action?: ReactNode;
 }) {
   return (
-    <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
+    <div className="mb-7 flex flex-wrap items-end justify-between gap-4">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight text-slate-900">{title}</h1>
-        {description && <p className="mt-1 text-sm text-slate-500">{description}</p>}
+        <h1 className="text-[1.75rem] font-bold leading-tight text-slate-900">{title}</h1>
+        {description && <p className="mt-1.5 text-sm text-slate-500">{description}</p>}
       </div>
       {action}
     </div>
@@ -138,18 +153,18 @@ export function PageHeader({
 type BadgeTone = 'neutral' | 'success' | 'warning' | 'danger' | 'info';
 
 const badgeStyles: Record<BadgeTone, string> = {
-  neutral: 'bg-slate-100 text-slate-700 ring-slate-200',
-  success: 'bg-emerald-50 text-emerald-700 ring-emerald-200',
-  warning: 'bg-amber-50 text-amber-700 ring-amber-200',
-  danger: 'bg-rose-50 text-rose-700 ring-rose-200',
-  info: 'bg-brand-50 text-brand-700 ring-brand-200',
+  neutral: 'bg-slate-100 text-slate-600 ring-slate-200/70',
+  success: 'bg-emerald-50 text-emerald-700 ring-emerald-200/70',
+  warning: 'bg-amber-50 text-amber-700 ring-amber-200/70',
+  danger: 'bg-rose-50 text-rose-700 ring-rose-200/70',
+  info: 'bg-brand-50 text-brand-700 ring-brand-200/70',
 };
 
 export function Badge({ tone = 'neutral', children }: { tone?: BadgeTone; children: ReactNode }) {
   return (
     <span
       className={clsx(
-        'inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ring-1 ring-inset',
+        'inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ring-1 ring-inset',
         badgeStyles[tone],
       )}
     >
@@ -191,7 +206,7 @@ export function Field({
 }) {
   return (
     <label className="block">
-      <span className="mb-1 block text-sm font-medium text-slate-700">{label}</span>
+      <span className="mb-1.5 block text-sm font-medium text-slate-700">{label}</span>
       {children}
       {/* role="alert" so a screen reader announces the failure rather than
           leaving it as silently-red text. */}
@@ -207,9 +222,10 @@ export function Field({
 }
 
 const controlClass =
-  'block w-full rounded-lg border-0 px-3 py-2 text-sm text-slate-900 ring-1 ring-inset ' +
-  'ring-slate-300 placeholder:text-slate-400 focus:ring-2 focus:ring-inset focus:ring-brand-500 ' +
-  'disabled:bg-slate-50 disabled:text-slate-500';
+  'block w-full rounded-xl border-0 bg-white px-3.5 py-2.5 text-sm text-slate-900 shadow-xs ' +
+  'ring-1 ring-inset ring-slate-200 transition-shadow placeholder:text-slate-400 ' +
+  'hover:ring-slate-300 focus:ring-2 focus:ring-inset focus:ring-brand-500 ' +
+  'disabled:bg-slate-50 disabled:text-slate-500 disabled:shadow-none';
 
 /*
  * The three controls forward their ref. This is not optional: react-hook-form
@@ -269,7 +285,7 @@ export function LoadingState({ label = 'Loading…' }: { label?: string }) {
  */
 export function ErrorState({ message, onRetry }: { message: string; onRetry?: () => void }) {
   return (
-    <div className="flex flex-col items-center gap-3 rounded-lg border border-rose-200 bg-rose-50 px-6 py-10 text-center">
+    <div className="flex flex-col items-center gap-3 rounded-2xl border border-rose-200/70 bg-rose-50/70 px-6 py-10 text-center">
       <AlertTriangle className="h-6 w-6 text-rose-600" />
       <p className="text-sm text-rose-800">{message}</p>
       {onRetry && (
@@ -292,7 +308,9 @@ export function EmptyState({
 }) {
   return (
     <div className="flex flex-col items-center gap-2 px-6 py-12 text-center">
-      <Inbox className="h-7 w-7 text-slate-300" />
+      <div className="mb-1 rounded-2xl bg-slate-100 p-3">
+        <Inbox className="h-6 w-6 text-slate-400" />
+      </div>
       <p className="text-sm font-medium text-slate-700">{title}</p>
       {description && <p className="max-w-sm text-sm text-slate-500">{description}</p>}
       {action && <div className="mt-2">{action}</div>}
@@ -308,7 +326,7 @@ export function TableWrapper({ children }: { children: ReactNode }) {
   // overflow-x-auto so a wide table scrolls inside its own box rather than
   // pushing the whole page sideways on a narrow screen.
   return (
-    <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm">
+    <div className="overflow-x-auto rounded-2xl border border-slate-200/80 bg-white shadow-sm">
       <table className="min-w-full divide-y divide-slate-200 text-sm">{children}</table>
     </div>
   );
@@ -319,7 +337,7 @@ export function Th({ children, align = 'left' }: { children: ReactNode; align?: 
     <th
       scope="col"
       className={clsx(
-        'whitespace-nowrap px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500',
+        'whitespace-nowrap px-4 py-3.5 text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500',
         align === 'right' ? 'text-right' : 'text-left',
       )}
     >
@@ -340,7 +358,7 @@ export function Td({
   return (
     <td
       className={clsx(
-        'whitespace-nowrap px-4 py-3 text-slate-700',
+        'whitespace-nowrap px-4 py-3.5 text-slate-700',
         align === 'right' ? 'text-right tabular' : 'text-left',
         className,
       )}
@@ -370,29 +388,35 @@ export function StatCard({
   /** Where the number leads. A figure worth showing is usually worth opening. */
   to?: string;
 }) {
-  const accent =
-    tone === 'success'
-      ? 'text-emerald-600'
-      : tone === 'warning'
-        ? 'text-amber-600'
-        : tone === 'danger'
-          ? 'text-rose-600'
-          : tone === 'info'
-            ? 'text-brand-600'
-            : 'text-slate-900';
+  // The number and its icon carry the same tone, so a tile reads as one object
+  // rather than a figure that happens to sit beside a grey square.
+  const accent = {
+    neutral: { value: 'text-slate-900', chip: 'bg-slate-100 text-slate-500' },
+    success: { value: 'text-emerald-600', chip: 'bg-emerald-50 text-emerald-600' },
+    warning: { value: 'text-amber-600', chip: 'bg-amber-50 text-amber-600' },
+    danger: { value: 'text-rose-600', chip: 'bg-rose-50 text-rose-600' },
+    info: { value: 'text-brand-600', chip: 'bg-brand-50 text-brand-600' },
+  }[tone];
 
   const body = (
     <>
-      <div>
-        <p className="text-sm font-medium text-slate-500">{label}</p>
-        <p className={clsx('mt-1 text-2xl font-semibold tabular', accent)}>{value}</p>
-        {hint && <p className="mt-1 text-xs text-slate-400">{hint}</p>}
+      <div className="min-w-0">
+        <p className="text-[13px] font-medium text-slate-500">{label}</p>
+        <p
+          className={clsx(
+            'mt-2 text-[1.75rem] font-bold leading-none tracking-tight tabular',
+            accent.value,
+          )}
+        >
+          {value}
+        </p>
+        {hint && <p className="mt-2 text-xs text-slate-400">{hint}</p>}
       </div>
       {icon && (
-        <div className="relative rounded-lg bg-slate-50 p-2 text-slate-400">
+        <div className={clsx('relative shrink-0 rounded-xl p-2.5', accent.chip)}>
           {icon}
           {to && (
-            <ArrowUpRight className="absolute -right-1 -top-1 h-3.5 w-3.5 text-brand-500 opacity-0 transition-opacity group-hover:opacity-100" />
+            <ArrowUpRight className="absolute -right-1.5 -top-1.5 h-4 w-4 rounded-full bg-white text-brand-500 opacity-0 transition-opacity group-hover:opacity-100" />
           )}
         </div>
       )}
@@ -400,7 +424,7 @@ export function StatCard({
   );
 
   if (!to) {
-    return <Card className="flex items-start justify-between gap-3">{body}</Card>;
+    return <Card className="flex items-start justify-between gap-4">{body}</Card>;
   }
 
   // A link that looks like the card, not a card with a link inside it: the whole
@@ -409,8 +433,8 @@ export function StatCard({
     <Link
       to={to}
       className={clsx(
-        'group flex items-start justify-between gap-3 rounded-xl border border-slate-200 bg-white p-5 shadow-sm',
-        'transition-all hover:-translate-y-0.5 hover:border-brand-300 hover:shadow-md',
+        'group flex items-start justify-between gap-4 rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm sm:p-6',
+        'transition-all duration-200 hover:-translate-y-0.5 hover:border-brand-200 hover:shadow-md',
         'focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500',
       )}
     >
@@ -437,11 +461,12 @@ export function Pagination({
   if (total === 0) return null;
 
   return (
-    <div className="flex items-center justify-between gap-4 px-1 py-3 text-sm text-slate-600">
+    <div className="mt-4 flex items-center justify-between gap-4 px-1 text-sm text-slate-500">
       <span>
-        Page <span className="font-medium">{page}</span> of{' '}
-        <span className="font-medium">{totalPages}</span> · {total} record
-        {total === 1 ? '' : 's'}
+        Page <span className="font-semibold text-slate-700 tabular">{page}</span> of{' '}
+        <span className="font-semibold text-slate-700 tabular">{totalPages}</span>
+        <span className="mx-1.5 text-slate-300">·</span>
+        <span className="tabular">{total}</span> record{total === 1 ? '' : 's'}
       </span>
       <div className="flex gap-2">
         <Button

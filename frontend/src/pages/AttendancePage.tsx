@@ -282,7 +282,7 @@ export function AttendancePage() {
                   {isHrOrAdmin && (
                     <Td>
                       <span className="font-medium text-slate-900">{row.employeeName}</span>
-                      <span className="ml-2 text-xs text-slate-400">{row.employeeCode}</span>
+                      <span className="code ml-2 text-slate-400">{row.employeeCode}</span>
                     </Td>
                   )}
                   <Td>{formatTime(row.checkInAt)}</Td>

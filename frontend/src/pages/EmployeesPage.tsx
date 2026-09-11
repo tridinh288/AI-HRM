@@ -292,7 +292,7 @@ export function EmployeesPage() {
                   <Td>
                     <span className="font-medium text-slate-900">{employee.fullName}</span>
                     <p className="text-xs text-slate-400">
-                      {employee.employeeCode} · {employee.email}
+                      <span className="code">{employee.employeeCode}</span> · {employee.email}
                     </p>
                   </Td>
                   <Td>{employee.department?.name ?? '—'}</Td>

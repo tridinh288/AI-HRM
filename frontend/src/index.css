@@ -6,24 +6,83 @@
  * Defined once as CSS variables rather than repeated as Tailwind classes, so
  * the palette is a single decision rather than a hundred scattered ones. The
  * application deliberately commits to a single light theme: a business tool
- * used in an office does not need a dark mode to be taken seriously, and half a
- * dark mode is worse than none.
+ * used in an office all day does not need a dark mode to be taken seriously,
+ * and half a dark mode is worse than none.
+ *
+ * Two of the scales below override Tailwind's own. That is the point: pages
+ * across this app were written against `slate-*` and `brand-*`, so redefining
+ * those two scales re-tones every screen at once, and a page never has to know
+ * which palette it is wearing.
  */
 @theme {
-  --color-brand-50: #eef2ff;
-  --color-brand-100: #e0e7ff;
-  --color-brand-200: #c7d2fe;
-  --color-brand-300: #a5b4fc;
-  --color-brand-400: #818cf8;
-  --color-brand-500: #6366f1;
-  --color-brand-600: #4f46e5;
-  --color-brand-700: #4338ca;
-  --color-brand-800: #3730a3;
-  --color-brand-900: #312e81;
+  /* --------------------------------------------------------------------
+   * Brand — a violet-indigo, not the default one.
+   *
+   * It has to stay clearly apart from the three semantic colours the domain
+   * already owns: emerald means approved, amber means late, rose means
+   * rejected. That rules out anything green, warm or red, which is most of
+   * the wheel. Violet is what is left that still reads as a deliberate
+   * choice rather than a framework default.
+   * ------------------------------------------------------------------ */
+  --color-brand-50: #f4f2ff;
+  --color-brand-100: #eae5ff;
+  --color-brand-200: #d7cdff;
+  --color-brand-300: #b9a8ff;
+  --color-brand-400: #967dfb;
+  --color-brand-500: #7a55f2;
+  --color-brand-600: #6537e3;
+  --color-brand-700: #5429c1;
+  --color-brand-800: #46249c;
+  --color-brand-900: #3a217e;
 
+  /* --------------------------------------------------------------------
+   * Neutrals — grey with a trace of the brand hue in it.
+   *
+   * A pure blue-grey is what every framework ships; bending it a few degrees
+   * towards the violet is the difference between a palette that was chosen
+   * and one that was inherited. The bias is small on purpose — at 2% chroma
+   * nobody names the colour, they just find the page calmer.
+   * ------------------------------------------------------------------ */
+  --color-slate-50: #faf9fc;
+  --color-slate-100: #f3f2f8;
+  --color-slate-200: #e7e4ef;
+  --color-slate-300: #d3cfdf;
+  --color-slate-400: #a29db2;
+  --color-slate-500: #746e85;
+  --color-slate-600: #575167;
+  --color-slate-700: #433e51;
+  --color-slate-800: #2c2837;
+  --color-slate-900: #1a1723;
+
+  /* --------------------------------------------------------------------
+   * Type
+   *
+   * Be Vietnam Pro is drawn for Vietnamese: the stacked diacritics that the
+   * interface is full of sit properly instead of colliding with ascenders,
+   * which is not true of most Latin faces. JetBrains Mono carries the second
+   * role — employee codes, ids, anything meant to be compared character by
+   * character rather than read.
+   * ------------------------------------------------------------------ */
   --font-sans:
-    'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue',
-    Arial, sans-serif;
+    'Be Vietnam Pro', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto,
+    'Helvetica Neue', Arial, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+
+  /* --------------------------------------------------------------------
+   * Elevation
+   *
+   * Two layers each: a tight dark edge that reads as a border, and a wide
+   * soft one that reads as height. A single blur does one or the other and
+   * ends up looking like a grey smudge. Tinted with the brand hue rather
+   * than black, so shadows belong to the same world as everything else.
+   * ------------------------------------------------------------------ */
+  --shadow-xs: 0 1px 2px 0 rgb(26 23 35 / 0.04);
+  --shadow-sm:
+    0 1px 2px -1px rgb(26 23 35 / 0.06), 0 2px 8px -2px rgb(58 33 126 / 0.06);
+  --shadow-md:
+    0 2px 4px -2px rgb(26 23 35 / 0.08), 0 8px 20px -6px rgb(58 33 126 / 0.10);
+  --shadow-lg:
+    0 4px 8px -4px rgb(26 23 35 / 0.08), 0 18px 40px -12px rgb(58 33 126 / 0.16);
 }
 
 html,
@@ -32,9 +91,39 @@ body,
   height: 100%;
 }
 
+/**
+ * The page ground.
+ *
+ * Two very wide, very faint washes of the brand colour, fixed so they do not
+ * travel with the scroll. Flat grey behind a screen full of white cards makes
+ * the cards look like they are floating on nothing; this gives them something
+ * to sit on. It has to stay faint enough that nobody notices it as a gradient.
+ */
 body {
-  @apply bg-slate-50 text-slate-900 antialiased;
+  @apply text-slate-900 antialiased;
   font-family: var(--font-sans);
+  background-color: var(--color-slate-50);
+  background-image:
+    radial-gradient(
+      68rem 34rem at 100% -12%,
+      color-mix(in oklab, var(--color-brand-300) 22%, transparent),
+      transparent 62%
+    ),
+    radial-gradient(
+      52rem 30rem at -8% 108%,
+      color-mix(in oklab, var(--color-brand-400) 14%, transparent),
+      transparent 60%
+    );
+  background-attachment: fixed;
+}
+
+/* Headings carry the weight and the tightening; the body face does the rest.
+   One family, two voices — a second display face would have to be dropped for
+   Vietnamese anyway. */
+h1,
+h2,
+h3 {
+  letter-spacing: -0.021em;
 }
 
 /* A focus ring that is visible for keyboard users and invisible for mouse users. */
@@ -47,13 +136,31 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
+/* Codes and ids: monospaced, slightly tightened, never wrapped mid-token. */
+.code {
+  font-family: var(--font-mono);
+  font-size: 0.8125rem;
+  letter-spacing: -0.01em;
+}
+
+::selection {
+  background: color-mix(in oklab, var(--color-brand-300) 60%, transparent);
+  color: var(--color-slate-900);
+}
+
 ::-webkit-scrollbar {
   width: 10px;
   height: 10px;
 }
+::-webkit-scrollbar-track {
+  background: transparent;
+}
 ::-webkit-scrollbar-thumb {
   @apply rounded-full bg-slate-300;
+  border: 2px solid transparent;
+  background-clip: content-box;
 }
 ::-webkit-scrollbar-thumb:hover {
   @apply bg-slate-400;
+  background-clip: content-box;
 }
