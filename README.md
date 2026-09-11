@@ -1,31 +1,78 @@
+<div align="center">
+
 # AI-Powered HRM
 
-Hệ thống quản lý nhân sự cho một công ty nhỏ, có trợ lý AI trả lời câu hỏi về dữ liệu nhân sự
+**Hệ thống quản lý nhân sự cho một công ty nhỏ, có trợ lý AI trả lời câu hỏi về dữ liệu nhân sự thật**
 
+[![CI](https://github.com/tridinh288/AI-HRM/actions/workflows/ci.yml/badge.svg)](https://github.com/tridinh288/AI-HRM/actions/workflows/ci.yml)
+![245 test](https://img.shields.io/badge/test-245%20passing-brightgreen)
+![TypeScript](https://img.shields.io/badge/TypeScript-5.7-3178C6?logo=typescript&logoColor=white)
+![React](https://img.shields.io/badge/React-18-61DAFB?logo=react&logoColor=black)
+![Node](https://img.shields.io/badge/Node-22-339933?logo=nodedotjs&logoColor=white)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-4169E1?logo=postgresql&logoColor=white)
+![Docker](https://img.shields.io/badge/Docker-compose-2496ED?logo=docker&logoColor=white)
+
+### [→ Mở bản demo](https://hrm-api-ubry.onrender.com)
+
+</div>
+
+---
 
 TypeScript từ đầu đến cuối — React + Vite phía trước, Express + PostgreSQL phía sau, Drizzle ORM
 cho schema và migration, Docker Compose để chạy trọn bộ, và 245 test chạy trên database thật.
 
+## Tài khoản demo
 
----
+Mở [bản demo](https://hrm-api-ubry.onrender.com) rồi đăng nhập bằng một trong ba tài khoản dưới
+đây. Cùng một hệ thống, ba mức quyền, và ba giao diện khác hẳn nhau.
 
-## Demo
+| Role | Email | Mật khẩu | Thấy được gì |
+|---|---|---|---|
+| **Admin** | `admin@hrm.local` | `DemoPassw0rd!` | Mọi thứ HR thấy, cộng trang **Accounts**: đổi role, khoá và mở đăng nhập của người khác |
+| **HR** | `hr@hrm.local` | `DemoPassw0rd!` | Toàn bộ nhân sự kèm lương, duyệt phép, dashboard, cả 10 tool AI |
+| **Employee** | `employee@hrm.local` | `DemoPassw0rd!` | Chỉ hồ sơ và chấm công của chính mình, 3 tool AI cá nhân |
 
-**<https://hrm-api-ubry.onrender.com>** — ba tài khoản ở mục [Tài khoản demo](#tài-khoản-demo) đăng
-nhập được ngay, mỗi tài khoản một góc nhìn khác nhau.
-
-Cứ thử thoải mái: đổi lương, khoá tài khoản, duyệt phép, hỏi trợ lý AI những câu mà role đang
-đăng nhập không được phép hỏi. Dữ liệu dựng lại từ đầu mỗi đêm
-([`demo-reset.yml`](.github/workflows/demo-reset.yml)), nên không có gì hỏng vĩnh viễn.
+> Ba mật khẩu này cố ý giống nhau cho dễ thử. 497 tài khoản còn lại mỗi người một mật khẩu riêng,
+> chỉ nằm trong file CSV git-ignored do seed sinh ra — không chỗ nào trong app tiết lộ chúng, và
+> trang đăng nhập chỉ là trang đăng nhập.
 
 Vài điều nên biết trước khi bấm:
 
-- Chạy trên gói miễn phí của Render nên service ngủ khi không ai dùng. Lần mở đầu tiên sau một
-  thời gian dài có thể chờ 30–60 giây; sau đó thì bình thường.
-- Trợ lý AI dùng mô hình miễn phí và bị siết còn 15 câu mỗi giờ cho mỗi tài khoản.
-- Mọi dữ liệu đều do seed sinh ra. Không có người thật nào trong đó.
+- **Lần mở đầu tiên có thể chờ 30–60 giây.** Gói miễn phí của Render cho service ngủ khi không ai
+  dùng; sau lần đánh thức đó thì bình thường.
+- **Cứ thử thoải mái** — đổi lương, khoá tài khoản, duyệt phép, hỏi trợ lý AI đúng những câu mà
+  role đang đăng nhập không được phép hỏi. Dữ liệu dựng lại từ đầu mỗi đêm
+  ([`demo-reset.yml`](.github/workflows/demo-reset.yml)), nên không có gì hỏng vĩnh viễn.
+- **Trợ lý AI** dùng mô hình miễn phí và bị siết còn 15 câu mỗi giờ cho mỗi tài khoản.
+- **Mọi dữ liệu đều do seed sinh ra.** Không có người thật nào trong đó.
 
-Toàn bộ hạ tầng nằm trong [`render.yaml`](render.yaml): một blueprint, hai thành phần — một database và một service phục vụ cả API lẫn giao diện.
+Toàn bộ hạ tầng nằm trong [`render.yaml`](render.yaml): một blueprint, hai thành phần — một
+database và một service phục vụ cả API lẫn giao diện.
+
+## Giao diện
+
+**Dashboard** — số liệu toàn công ty. Mỗi ô và mỗi cột biểu đồ đều bấm được, dẫn thẳng sang đúng
+danh sách đứng sau con số đó.
+
+![Dashboard](docs/screenshots/dashboard.png)
+
+**Danh sách nhân viên** — tìm kiếm, lọc theo phòng ban và trạng thái, phân trang phía server. Cột
+lương chỉ tồn tại trong response khi người gọi là HR hoặc ADMIN; với role khác nó không bị ẩn đi ở
+frontend mà đơn giản là không có trong dữ liệu trả về.
+
+![Danh sách nhân viên](docs/screenshots/employees.png)
+
+**Trợ lý AI** — panel bên phải liệt kê đúng những tool mà role đang đăng nhập được phép gọi, và
+nói thẳng phạm vi của từng cái: `only you` hay `company-wide`. Mô hình không bao giờ nhìn thấy
+database; nó chỉ chọn gọi tool nào, còn server quyết định người này có được gọi hay không.
+
+![Trợ lý AI](docs/screenshots/assistant.png)
+
+**Quản trị tài khoản** — quyền duy nhất ADMIN có mà HR không có. Đổi role hoặc khoá đăng nhập của
+người khác, với ba rào chắn: không tự sửa chính mình, không hạ cấp quản trị viên hoạt động cuối
+cùng, không mở lại đăng nhập cho người đã nghỉ việc.
+
+![Quản trị tài khoản](docs/screenshots/accounts.png)
 
 ---
 
@@ -468,24 +515,27 @@ trống ô đó thì container chỉ chạy server, không migrate và không se
 Muốn dữ liệu tự dựng lại mỗi đêm thì thêm external connection string của database vào GitHub
 secret `DEMO_DATABASE_URL`, cho [`demo-reset.yml`](.github/workflows/demo-reset.yml) dùng.
 
-### Tài khoản demo
+### Dữ liệu seed
 
-Do seed tạo. Ba tài khoản này dùng chung mật khẩu `DemoPassw0rd!`; mọi tài khoản còn lại có mật
-khẩu riêng, liệt kê trong `backend/seed-output/accounts.csv` (git-ignored) sau khi seed chạy.
-Không gì trong app tiết lộ chúng — trang đăng nhập chỉ là trang đăng nhập.
+Ba tài khoản đăng nhập là những tài khoản ở mục [Tài khoản demo](#tài-khoản-demo) phía trên —
+giống hệt nhau dù chạy ở máy hay trên bản demo, vì cùng một seed sinh ra chúng. 497 tài khoản còn
+lại mỗi người một mật khẩu riêng, liệt kê trong `backend/seed-output/accounts.csv` (git-ignored)
+sau khi seed chạy.
 
-| Role | Email | Thấy gì |
-|---|---|---|
-| Admin | `admin@hrm.local` | Mọi thứ, kể cả quản lý tài khoản |
-| HR | `hr@hrm.local` | Mọi nhân viên, duyệt phép, dashboard, mọi tool AI |
-| Employee | `employee@hrm.local` | Chỉ bản ghi của mình, ba tool AI cá nhân |
+Seed dựng một công ty 500 người trong năm phòng ban cộng một phòng Executive chỉ có giám đốc —
+485 đang làm và 15 đã nghỉ — với ba tháng chấm công (~30.000 bản ghi, gồm cả đi muộn và quên
+check-out như thật) và ~640 đơn nghỉ phép ở mọi trạng thái. Mọi thứ trừ mật khẩu là tất định, nên
+cùng một lệnh luôn cho ra cùng một công ty.
 
-Seed dựng một công ty 500 người trong năm phòng ban cộng một phòng Executive chỉ có giám đốc — 485 đang làm và 15 đã nghỉ — với ba tháng
-chấm công (~30.000 bản ghi, gồm cả đi muộn và quên check-out như thật) và ~640 đơn nghỉ phép ở
-mọi trạng thái. Mọi thứ trừ mật khẩu là tất định, nên cùng một lệnh luôn cho ra cùng một công ty.
+Ba tính chất của nó đáng để biết:
 
-Nó không bao giờ tự xoá gì: chỉ đổ vào database trống và từ chối đụng vào database đã có tài
-khoản. Xoá là một bước riêng, phải gọi đích danh:
+- **Không bao giờ tự xoá gì.** Chỉ đổ vào database trống, và từ chối đụng vào database đã có tài
+  khoản. Xoá là một bước riêng, phải gọi đích danh.
+- **Tất cả hoặc không gì cả.** Cả lượt chạy nằm trong một transaction, nên bị ngắt giữa chừng —
+  container bị giết, mất kết nối — sẽ rollback về đúng trạng thái trước đó thay vì để lại một
+  công ty xây dở mà lần chạy sau lại tưởng là đã seed xong.
+- **Mở cổng trước, seed sau.** Trên nền tảng hosting, server lên và nhận request ngay; dữ liệu đổ
+  vào phía sau trong vài phút đầu. Xem [`docker-start.sh`](backend/docker-start.sh).
 
 ```bash
 npm run db:seed -- --reset       # bỏ mọi bảng và dựng lại từ đầu
