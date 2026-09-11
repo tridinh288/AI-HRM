@@ -8,12 +8,18 @@
  * Executive office, three months of attendance, and a spread of leave requests
  * in every state.
  *
- * Two properties are worth knowing before running it.
+ * Three properties are worth knowing before running it.
  *
  * **It never deletes anything on its own.** The seed fills an *empty* database.
  * If accounts already exist it stops and changes nothing, because the data in a
  * running system is the one thing a convenience script must not be able to
  * take away. Wiping is a separate, explicit decision: `--reset`.
+ *
+ * **It is all or nothing.** The whole run is one transaction. An interruption —
+ * a container killed mid-seed, a dropped connection — rolls back to an empty
+ * database, which the next run fills in normally. Without that, a half-built
+ * company stays behind and the guard above reads it as "already seeded",
+ * so the damage outlives the thing that caused it.
  *
  * **Every account has its own password.** The three demo logins documented in
  * the README keep the documented password so that the README stays true. The
@@ -38,7 +44,7 @@ import { companyPolicy } from '../config/env.js';
 import { evaluateCheckIn, evaluateCheckOut } from '../modules/attendance/attendance.policy.js';
 import { hashPassword } from '../modules/auth/auth.service.js';
 import { countWorkingDays, isWeekend } from '../shared/calendar.js';
-import { closeDatabase, db } from './client.js';
+import { closeDatabase, db, type DbExecutor } from './client.js';
 import {
   attendanceRecords,
   departments,
@@ -263,10 +269,10 @@ interface SeedPerson {
   isDemo: boolean;
 }
 
-async function seed(): Promise<void> {
+async function seed(exec: DbExecutor): Promise<void> {
   const reset = process.argv.includes('--reset');
 
-  const [existing] = await db.select({ count: sql<number>`count(*)::int` }).from(users);
+  const [existing] = await exec.select({ count: sql<number>`count(*)::int` }).from(users);
   const existingAccounts = existing?.count ?? 0;
 
   if (existingAccounts > 0 && !reset) {
@@ -277,45 +283,6 @@ async function seed(): Promise<void> {
     );
     return;
   }
-
-  if (reset) {
-    console.log(`--reset: discarding ${existingAccounts} accounts and everything attached to them…`);
-    // TRUNCATE ... CASCADE in one statement: order-independent, and far faster
-    // than deleting table by table in dependency order.
-    await db.execute(sql`
-      truncate table
-        ai_tool_invocations, ai_messages, ai_conversations,
-        audit_logs, refresh_tokens,
-        leave_requests, leave_balances, attendance_records,
-        employees, users, leave_types, positions, departments
-      restart identity cascade
-    `);
-  }
-
-  console.log('Inserting departments, positions and leave types…');
-
-  const departmentRows = await db
-    .insert(departments)
-    .values(DEPARTMENTS.map(({ weight: _weight, ...d }) => ({ ...d })))
-    .returning({ id: departments.id, code: departments.code });
-
-  const positionRows = await db
-    .insert(positions)
-    .values(POSITIONS.map((p) => ({ title: p.title, level: p.level })))
-    .returning({ id: positions.id, title: positions.title });
-
-  const leaveTypeRows = await db
-    .insert(leaveTypes)
-    .values(LEAVE_TYPES.map((t) => ({ ...t })))
-    .returning({
-      id: leaveTypes.id,
-      code: leaveTypes.code,
-      defaultDays: leaveTypes.defaultDays,
-      isPaid: leaveTypes.isPaid,
-    });
-
-  const departmentByCode = new Map(departmentRows.map((row) => [row.code, row.id]));
-  const positionByTitle = new Map(positionRows.map((row) => [row.title, row.id]));
 
   console.log(`Generating ${TOTAL_PEOPLE} people…`);
 
@@ -420,9 +387,48 @@ async function seed(): Promise<void> {
     }
   }
 
+  if (reset) {
+    console.log(`--reset: discarding ${existingAccounts} accounts and everything attached to them…`);
+    // TRUNCATE ... CASCADE in one statement: order-independent, and far faster
+    // than deleting table by table in dependency order.
+    await exec.execute(sql`
+      truncate table
+        ai_tool_invocations, ai_messages, ai_conversations,
+        audit_logs, refresh_tokens,
+        leave_requests, leave_balances, attendance_records,
+        employees, users, leave_types, positions, departments
+      restart identity cascade
+    `);
+  }
+
+  console.log('Inserting departments, positions and leave types…');
+
+  const departmentRows = await exec
+    .insert(departments)
+    .values(DEPARTMENTS.map(({ weight: _weight, ...d }) => ({ ...d })))
+    .returning({ id: departments.id, code: departments.code });
+
+  const positionRows = await exec
+    .insert(positions)
+    .values(POSITIONS.map((p) => ({ title: p.title, level: p.level })))
+    .returning({ id: positions.id, title: positions.title });
+
+  const leaveTypeRows = await exec
+    .insert(leaveTypes)
+    .values(LEAVE_TYPES.map((t) => ({ ...t })))
+    .returning({
+      id: leaveTypes.id,
+      code: leaveTypes.code,
+      defaultDays: leaveTypes.defaultDays,
+      isPaid: leaveTypes.isPaid,
+    });
+
+  const departmentByCode = new Map(departmentRows.map((row) => [row.code, row.id]));
+  const positionByTitle = new Map(positionRows.map((row) => [row.title, row.id]));
+
   console.log('Creating users and employees…');
 
-  const userRows = await db
+  const userRows = await exec
     .insert(users)
     .values(
       allPeople.map((person) => ({
@@ -436,7 +442,7 @@ async function seed(): Promise<void> {
 
   const userIdByEmail = new Map(userRows.map((row) => [row.email, row.id]));
 
-  const employeeRows = await db
+  const employeeRows = await exec
     .insert(employees)
     .values(
       allPeople.map((person, index) => {
@@ -470,12 +476,12 @@ async function seed(): Promise<void> {
   const terminatedEmployeeIds = new Set(terminated.map((row) => row.id));
 
   if (terminated.length > 0) {
-    await db
+    await exec
       .update(employees)
       .set({ employmentStatus: 'TERMINATED', terminatedAt: addDays(today, -randomInt(10, 200)) })
       .where(inArray(employees.id, terminated.map((row) => row.id)));
 
-    await db
+    await exec
       .update(users)
       .set({ isActive: false })
       .where(inArray(users.id, terminated.map((row) => row.userId)));
@@ -485,7 +491,7 @@ async function seed(): Promise<void> {
 
   console.log('Creating leave balances…');
 
-  await db.insert(leaveBalances).values(
+  await exec.insert(leaveBalances).values(
     employeeRows.flatMap((employee) =>
       leaveTypeRows.map((type) => ({
         employeeId: employee.id,
@@ -565,7 +571,7 @@ async function seed(): Promise<void> {
   // parameters per statement, and ~30,000 rows of nine columns is well past it.
   const CHUNK = 2000;
   for (let i = 0; i < attendanceValues.length; i += CHUNK) {
-    await db.insert(attendanceRecords).values(attendanceValues.slice(i, i + CHUNK));
+    await exec.insert(attendanceRecords).values(attendanceValues.slice(i, i + CHUNK));
   }
   console.log(`  ${attendanceValues.length} attendance records created.`);
 
@@ -612,7 +618,7 @@ async function seed(): Promise<void> {
 
       const decided = status === 'APPROVED' || status === 'REJECTED';
 
-      await db.insert(leaveRequests).values({
+      await exec.insert(leaveRequests).values({
         employeeId: employee.id,
         leaveTypeId: type.id,
         startDate,
@@ -627,7 +633,7 @@ async function seed(): Promise<void> {
 
       if (status === 'APPROVED' && type.isPaid) {
         usedDaysByEmployee.set(employee.id, alreadyUsed + totalDays);
-        await db
+        await exec
           .update(leaveBalances)
           .set({ usedDays: sql`${leaveBalances.usedDays} + ${totalDays}` })
           .where(
@@ -639,7 +645,7 @@ async function seed(): Promise<void> {
     }
   }
 
-  const leaveCountRows = await db
+  const leaveCountRows = await exec
     .select({ count: sql<number>`count(*)::int` })
     .from(leaveRequests);
   console.log(`  ${leaveCountRows[0]?.count ?? 0} leave requests created.`);
@@ -683,7 +689,19 @@ async function seed(): Promise<void> {
   );
 }
 
-seed()
+/**
+ * All of it, or none of it.
+ *
+ * An interrupted seed used to leave a half-built company behind — and the guard
+ * at the top of `seed` then read those rows as "already seeded" and refused to
+ * touch them, so the damage was permanent until somebody ran `--reset` by hand.
+ * Inside a transaction, an interruption rolls back to an empty database, which
+ * the next run fills in normally.
+ *
+ * Password hashing happens before the first write, so the slow part of the run
+ * does not hold a transaction open.
+ */
+db.transaction((tx) => seed(tx))
   .then(async () => {
     await closeDatabase();
     process.exit(0);
