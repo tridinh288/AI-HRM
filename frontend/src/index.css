@@ -55,6 +55,17 @@
   --color-slate-900: #1a1723;
 
   /* --------------------------------------------------------------------
+   * The page ground, kept apart from the neutral scale.
+   *
+   * `slate-50` cannot do this job: it is also the fill behind table headers,
+   * disabled inputs and icon chips, and darkening it to give the page depth
+   * would drag all of those down with it. The ground is its own decision, and
+   * it is deliberately a few steps darker than anything sitting on it, so a
+   * white card reads as a card rather than as part of the paper.
+   * ------------------------------------------------------------------ */
+  --color-canvas: #e9e7f2;
+
+  /* --------------------------------------------------------------------
    * Type
    *
    * Be Vietnam Pro is drawn for Vietnamese: the stacked diacritics that the
@@ -102,17 +113,17 @@ body,
 body {
   @apply text-slate-900 antialiased;
   font-family: var(--font-sans);
-  background-color: var(--color-slate-50);
+  background-color: var(--color-canvas);
   background-image:
     radial-gradient(
-      68rem 34rem at 100% -12%,
-      color-mix(in oklab, var(--color-brand-300) 22%, transparent),
-      transparent 62%
+      70rem 36rem at 100% -14%,
+      color-mix(in oklab, var(--color-brand-300) 34%, transparent),
+      transparent 64%
     ),
     radial-gradient(
-      52rem 30rem at -8% 108%,
-      color-mix(in oklab, var(--color-brand-400) 14%, transparent),
-      transparent 60%
+      54rem 32rem at -10% 110%,
+      color-mix(in oklab, var(--color-brand-400) 20%, transparent),
+      transparent 62%
     );
   background-attachment: fixed;
 }

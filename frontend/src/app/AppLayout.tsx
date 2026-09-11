@@ -135,7 +135,7 @@ export function AppLayout() {
   return (
     <div className="flex h-full">
       {/* Desktop sidebar */}
-      <aside className="hidden w-64 shrink-0 border-r border-slate-200/70 bg-white/70 backdrop-blur-xl lg:block">
+      <aside className="hidden w-64 shrink-0 border-r border-slate-300/50 bg-white/55 backdrop-blur-xl lg:block">
         {sidebarContent}
       </aside>
 
@@ -162,7 +162,7 @@ export function AppLayout() {
       )}
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="sticky top-0 z-20 flex items-center gap-3 border-b border-slate-200/70 bg-white/80 px-4 py-3 backdrop-blur-xl lg:hidden">
+        <header className="sticky top-0 z-20 flex items-center gap-3 border-b border-slate-300/50 bg-white/70 px-4 py-3 backdrop-blur-xl lg:hidden">
           <button
             type="button"
             onClick={() => setMobileOpen(true)}
