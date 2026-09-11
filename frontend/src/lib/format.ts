@@ -11,6 +11,34 @@ export function formatDate(value: string | null | undefined): string {
   }
 }
 
+/**
+ * A date range with nothing repeated.
+ *
+ * "18 Sep 2026 → 19 Sep 2026" says the month twice and the year twice to
+ * describe two days. Dropping what both ends share turns it into
+ * "18 → 19 Sep 2026", which is shorter to read and, in a table, leaves room
+ * for the column that carries the buttons.
+ */
+export function formatDateRange(start: string, end: string): string {
+  if (!start) return '—';
+  if (!end || start === end) return formatDate(start);
+
+  try {
+    const from = parseISO(start);
+    const to = parseISO(end);
+
+    if (from.getFullYear() !== to.getFullYear()) {
+      return `${format(from, 'dd MMM yyyy')} → ${format(to, 'dd MMM yyyy')}`;
+    }
+    if (from.getMonth() !== to.getMonth()) {
+      return `${format(from, 'dd MMM')} → ${format(to, 'dd MMM yyyy')}`;
+    }
+    return `${format(from, 'dd')} → ${format(to, 'dd MMM yyyy')}`;
+  } catch {
+    return `${start} → ${end}`;
+  }
+}
+
 export function formatDateTime(value: string | null | undefined): string {
   if (!value) return '—';
   try {

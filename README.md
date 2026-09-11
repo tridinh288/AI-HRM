@@ -62,6 +62,18 @@ frontend mà đơn giản là không có trong dữ liệu trả về.
 
 ![Danh sách nhân viên](docs/screenshots/employees.png)
 
+**Chấm công** — bảng công của cả công ty theo ngày. Đi muộn và về sớm không phải cờ do người
+nhập: chúng được tính lại từ giờ check-in, check-out và chính sách trong cấu hình, và HR sửa một
+bản ghi thì mọi trường suy dẫn được tính lại theo.
+
+![Chấm công](docs/screenshots/attendance.png)
+
+**Nghỉ phép** — số dư của chính người đang đăng nhập ở trên, hàng chờ duyệt ở dưới. Bấm duyệt là
+một transaction có khoá dòng: trừ số dư và đổi trạng thái cùng lúc, và một CHECK constraint từ
+chối lưu nếu số dư vượt quá quyền lợi — kể cả khi logic ứng dụng sai.
+
+![Nghỉ phép](docs/screenshots/leave.png)
+
 **Trợ lý AI** — câu trả lời bên dưới là dữ liệu thật, lấy qua một tool call mà giao diện ghi lại
 ngay dưới câu trả lời: *Employee directory (7ms)*. Mô hình không bao giờ nhìn thấy database và
 không viết một dòng SQL nào; nó chỉ chọn gọi tool nào, còn server quyết định người đang hỏi có
@@ -187,6 +199,8 @@ Tách controller/service không phải để cho đẹp: tầng tool của AI g�
 | Argon2id | bcrypt | Tốn bộ nhớ, nên bẻ khoá bằng GPU đắt. bcrypt cũng không sai. |
 | Zod | Joi, express-validator | Schema suy ra kiểu TypeScript, nên kiểm tra lúc chạy và kiểu lúc biên dịch không thể lệch nhau. Cùng bộ schema đó validate tham số tool của AI. |
 | TanStack Query | Redux | Gần như toàn bộ state ở đây là state *của server*. Redux nghĩa là tự viết caching, refetch và invalidation. |
+| Token trong `@theme` của Tailwind | Thư viện component dựng sẵn | Bảng màu, font và bóng đổ khai báo một lần; các trang viết theo `slate-*` và `brand-*` nên đổi tông cả ứng dụng là sửa hai thang màu, không phải sửa từng trang. Đổi lại là phải tự dựng từng primitive. |
+| Be Vietnam Pro | Inter, system font | Giao diện đầy tiếng Việt, và font này được vẽ cho đúng bộ dấu chồng đó thay vì để dấu đâm vào nét trên. |
 
 ---
 
@@ -450,21 +464,25 @@ cp .env.example .env
 # Sinh hai secret rồi dán vào .env:
 node -e "console.log(require('crypto').randomBytes(48).toString('base64url'))"
 
-docker compose up --build
+docker compose up -d --build
 ```
 
-Rồi, ở terminal khác, áp dụng migration và nạp dữ liệu demo:
-
-```bash
-docker compose exec api npm run db:deploy
-docker compose exec api node dist/db/seed.js
-# Mật khẩu sinh ra nằm trong container; chép ra ngoài:
-docker compose cp api:/app/seed-output/accounts.csv ./accounts.csv
-```
+Một lệnh, không có bước hai. Container API chạy migration, bật seed chạy nền rồi mới phục vụ —
+đúng script [`docker-start.sh`](backend/docker-start.sh) mà bản deploy dùng. Vài phút đầu web đã
+mở được trong khi công ty 500 người vẫn đang được dựng phía sau: hash 500 mật khẩu argon2id lâu
+hơn khoảng thời gian mà một nền tảng hosting chịu chờ một service mở cổng.
 
 - Web → <http://localhost:8080>
 - API → <http://localhost:4000/api/v1>
 - Health check → <http://localhost:4000/health>
+
+Cổng nào đang bận thì đổi trong `.env` — `WEB_PORT`, `API_PORT` — và `CORS_ORIGIN` tự bám theo.
+
+Mật khẩu riêng của 497 tài khoản còn lại nằm trong container:
+
+```bash
+docker compose cp api:/app/seed-output/accounts.csv ./accounts.csv
+```
 
 ### Chạy trực tiếp
 

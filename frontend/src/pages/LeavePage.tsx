@@ -24,7 +24,7 @@ import {
 } from '../components/ui';
 import { useAuth } from '../features/auth/AuthContext';
 import { api, fetchData, fetchPage, getErrorMessage } from '../lib/api';
-import { formatDate } from '../lib/format';
+import { formatDateRange } from '../lib/format';
 import type { LeaveBalance, LeaveRequest, LeaveType } from '../lib/types';
 
 const requestSchema = z
@@ -277,12 +277,9 @@ export function LeavePage() {
                       </Td>
                     )}
                     <Td>{request.leaveTypeName}</Td>
-                    <Td>
-                      {formatDate(request.startDate)}
-                      {request.startDate !== request.endDate && ` → ${formatDate(request.endDate)}`}
-                    </Td>
+                    <Td>{formatDateRange(request.startDate, request.endDate)}</Td>
                     <Td align="right">{request.totalDays}</Td>
-                    <Td className="max-w-xs truncate whitespace-normal">{request.reason}</Td>
+                    <Td className="max-w-44 truncate whitespace-normal">{request.reason}</Td>
                     <Td>
                       <StatusBadge status={request.status} />
                       {request.decisionNote && (
