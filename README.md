@@ -62,15 +62,18 @@ frontend mà đơn giản là không có trong dữ liệu trả về.
 
 ![Danh sách nhân viên](docs/screenshots/employees.png)
 
-**Trợ lý AI** — panel bên phải liệt kê đúng những tool mà role đang đăng nhập được phép gọi, và
-nói thẳng phạm vi của từng cái: `only you` hay `company-wide`. Mô hình không bao giờ nhìn thấy
-database; nó chỉ chọn gọi tool nào, còn server quyết định người này có được gọi hay không.
+**Trợ lý AI** — câu trả lời bên dưới là dữ liệu thật, lấy qua một tool call mà giao diện ghi lại
+ngay dưới câu trả lời: *Employee directory (7ms)*. Mô hình không bao giờ nhìn thấy database và
+không viết một dòng SQL nào; nó chỉ chọn gọi tool nào, còn server quyết định người đang hỏi có
+được gọi tool đó hay không. Panel bên phải liệt kê đúng những tool mà role hiện tại chạm tới
+được, kèm phạm vi từng cái: `only you` hay `company-wide`.
 
 ![Trợ lý AI](docs/screenshots/assistant.png)
 
 **Quản trị tài khoản** — quyền duy nhất ADMIN có mà HR không có. Đổi role hoặc khoá đăng nhập của
 người khác, với ba rào chắn: không tự sửa chính mình, không hạ cấp quản trị viên hoạt động cuối
-cùng, không mở lại đăng nhập cho người đã nghỉ việc.
+cùng, không mở lại đăng nhập cho người đã nghỉ việc. Rào chắn thứ nhất nhìn thấy được ngay trên
+ảnh: hàng đầu tiên là tài khoản đang đăng nhập, và nó ghi "Bạn" thay cho nút sửa.
 
 ![Quản trị tài khoản](docs/screenshots/accounts.png)
 
