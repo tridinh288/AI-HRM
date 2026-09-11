@@ -203,7 +203,13 @@ async function callProvider<T>(operation: () => Promise<T>): Promise<T> {
     return await operation();
   } catch (error) {
     if (error instanceof LlmError) {
-      log.error({ kind: error.kind, status: error.status }, 'LLM provider error');
+      // `detail` carries what the provider actually said — "invalid_api_key",
+      // "model_not_found", a rejected parameter. The reply to the caller stays
+      // deliberately vague, so without this line the operator is guessing too.
+      log.error(
+        { kind: error.kind, status: error.status, detail: error.message },
+        'LLM provider error',
+      );
 
       switch (error.kind) {
         case 'timeout':
