@@ -105,8 +105,13 @@ Phần lớn demo HRM là vài form CRUD trên vài bảng. Ở đây có hai đ
    dòng; và một CHECK constraint từ chối lưu số dư vượt quá quyền lợi, kể cả khi logic ứng dụng
    sai.
 
-Các quyết định thiết kế, gồm cả những phương án đã bị loại, được viết trong
-[`docs/DESIGN.md`](docs/DESIGN.md).
+Hai tài liệu đi kèm, cho hai người đọc khác nhau:
+
+- [**`docs/KIEN-TRUC.md`**](docs/KIEN-TRUC.md) — *hệ thống là gì*, viết cho người mới biết
+  lập trình sơ sơ. Đi theo một cú bấm chuột từ giao diện xuống tận database, giải thích vì
+  sao backend chia ba tầng, và có từ điển thuật ngữ ở cuối.
+- [**`docs/DESIGN.md`**](docs/DESIGN.md) — *vì sao lại làm như vậy*, gồm cả những phương án
+  đã bị loại và lý do. Viết cho người đã hiểu hệ thống.
 
 ---
 
