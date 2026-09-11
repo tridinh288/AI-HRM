@@ -41,7 +41,9 @@ services:
       PORT: 4000
       # Inside the compose network the database host is the service name.
       DATABASE_URL: postgresql://${POSTGRES_USER:-hrm}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-hrm}
-      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:8080}
+      # Mac dinh bam theo WEB_PORT: doi cong ma quen doi CORS thi trinh duyet
+      # chan request ma khong bao gi o phia server ngoai mot preflight 204.
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:${WEB_PORT:-8080}}
       JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:?set JWT_ACCESS_SECRET in .env}
       JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:?set JWT_REFRESH_SECRET in .env}
       JWT_ACCESS_TTL: ${JWT_ACCESS_TTL:-15m}
@@ -61,7 +63,9 @@ services:
       AI_RATE_LIMIT_PER_HOUR: ${AI_RATE_LIMIT_PER_HOUR:-30}
       LOG_LEVEL: ${LOG_LEVEL:-info}
     ports:
-      - '4000:4000'
+      # Cong tren may that cau hinh duoc: 4000 va 8080 la nhung cong
+      # rat hay bi mot thu khac tren may chiem mat.
+      - '${API_PORT:-4000}:4000'
 
   web:
     build:
@@ -73,7 +77,7 @@ services:
     depends_on:
       - api
     ports:
-      - '8080:80'
+      - '${WEB_PORT:-8080}:80'
 
 volumes:
   postgres-data:
